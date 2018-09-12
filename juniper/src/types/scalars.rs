@@ -111,6 +111,30 @@ graphql_scalar!(i32 as "Int" {
     }
 });
 
+graphql_scalar!(u32 {
+    description: "An unsigned integer"
+
+    resolve(&self) -> Value {
+        Value::int(*self as i32)
+    }
+
+    from_input_value(v: &InputValue) -> Option<u32> {
+        // If there's a parse error here, simply return None. Juniper will
+        // present an error to the client.
+        match v.as_int_value() {
+            Some(i) => {
+                if i < 0 {
+                    None
+                }
+                else{
+                    Some(i as u32)
+                }
+            },
+            None => None
+        }
+    }
+});
+
 
 graphql_scalar!(f64 as "Float" {
     resolve(&self) -> Value {
