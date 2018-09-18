@@ -5,6 +5,8 @@ mod interface;
 #[macro_use]
 mod scalar;
 #[macro_use]
+mod stringscalar;
+#[macro_use]
 mod args;
 #[macro_use]
 mod field;
