@@ -103,23 +103,28 @@ graphql_scalar!(bool as "Boolean" {
 
 graphql_scalar!(i32 as "Int" {
     resolve(&self) -> Value {
-        Value::int(*self)
+        Value::int(*self as i64)
     }
 
     from_input_value(v: &InputValue) -> Option<i32> {
         match *v {
-            InputValue::Int(i) => Some(i),
-            _ => None,
+            InputValue::Int(i) => {
+                if i > i32::max_value() as i64 {
+                    panic!("{} cannot be decoded to i32 as it is > {}", i, i32::max_value());
+                }
+                else if i < i32::min_value() as i64 {
+                    panic!("{} cannot be decoded to i32 as it is < {}", i, i32::min_value());
+                }
+                Some(i as i32)
+            },
+            _ => None
         }
     }
 });
 
 graphql_scalar!(u32 as "Int" {
     resolve(&self) -> Value {
-        if *self > (i32::max_value() as u32) {
-            panic!("u32 > {} cannot be used in GraphQL", i32::max_value());
-        }
-        Value::int(*self as i32)
+        Value::int(*self as i64)
     }
 
     from_input_value(v: &InputValue) -> Option<u32> {
@@ -129,6 +134,9 @@ graphql_scalar!(u32 as "Int" {
                     None
                 }
                 else {
+                    if i > u32::max_value() as i64 {
+                        panic!("{} cannot be decoded to u32 as it is > {}", i, u32::max_value());
+                    }
                     Some(i as u32)
                 }
             },

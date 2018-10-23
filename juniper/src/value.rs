@@ -17,7 +17,7 @@ use ast::{InputValue, ToInputValue};
 #[allow(missing_docs)]
 pub enum Value {
     Null,
-    Int(i32),
+    Int(i64),
     Float(f64),
     String(String),
     Boolean(bool),
@@ -34,7 +34,7 @@ impl Value {
     }
 
     /// Construct an integer value.
-    pub fn int(i: i32) -> Value {
+    pub fn int(i: i64) -> Value {
         Value::Int(i)
     }
 
@@ -159,9 +159,16 @@ impl From<bool> for Value {
 
 impl From<i32> for Value {
     fn from(i: i32) -> Value {
+        Value::int(i as i64)
+    }
+}
+
+impl From<i64> for Value {
+    fn from(i: i64) -> Value {
         Value::int(i)
     }
 }
+
 
 impl From<f64> for Value {
     fn from(f: f64) -> Value {

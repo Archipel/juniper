@@ -162,10 +162,10 @@ where
         self.visit_all(|v| v.exit_null_value(ctx, n.clone()));
     }
 
-    fn enter_int_value(&mut self, ctx: &mut ValidatorContext<'a>, i: Spanning<i32>) {
+    fn enter_int_value(&mut self, ctx: &mut ValidatorContext<'a>, i: Spanning<i64>) {
         self.visit_all(|v| v.enter_int_value(ctx, i.clone()));
     }
-    fn exit_int_value(&mut self, ctx: &mut ValidatorContext<'a>, i: Spanning<i32>) {
+    fn exit_int_value(&mut self, ctx: &mut ValidatorContext<'a>, i: Spanning<i64>) {
         self.visit_all(|v| v.exit_int_value(ctx, i.clone()));
     }
 

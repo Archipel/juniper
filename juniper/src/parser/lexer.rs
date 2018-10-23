@@ -21,7 +21,7 @@ pub struct Lexer<'a> {
 #[allow(missing_docs)]
 pub enum Token<'a> {
     Name(&'a str),
-    Int(i32),
+    Int(i64),
     Float(f64),
     String(String),
     ExclamationMark,
@@ -413,7 +413,7 @@ impl<'a> Lexer<'a> {
         ))
     }
 
-    fn scan_integer_part(&mut self) -> Result<i32, Spanning<LexerError>> {
+    fn scan_integer_part(&mut self) -> Result<i64, Spanning<LexerError>> {
         let is_negative = {
             let (_, init_ch) = try!(self.peek_char().ok_or(Spanning::zero_width(
                 &self.position,
@@ -448,7 +448,7 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    fn scan_digits(&mut self) -> Result<i32, Spanning<LexerError>> {
+    fn scan_digits(&mut self) -> Result<i64, Spanning<LexerError>> {
         let start_pos = self.position.clone();
         let (start_idx, ch) = try!(self.peek_char().ok_or(Spanning::zero_width(
             &self.position,
@@ -472,7 +472,7 @@ impl<'a> Lexer<'a> {
             }
         }
 
-        i32::from_str_radix(&self.source[start_idx..end_idx + 1], 10).map_err(|_| {
+        i64::from_str_radix(&self.source[start_idx..end_idx + 1], 10).map_err(|_| {
             Spanning::zero_width(&start_pos, LexerError::InvalidNumber)
         })
     }
