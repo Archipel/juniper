@@ -59,8 +59,8 @@ graphql_scalar!(String as "String" {
 });
 
 // Needs to be defined here because traits can only be implemented where type or trait is defined
-graphql_stringscalar!(u32);
-graphql_stringscalar!(u64);
+//graphql_stringscalar!(u32);
+//graphql_stringscalar!(u64);
 
 
 impl<'a> GraphQLType for &'a str {
@@ -101,7 +101,6 @@ graphql_scalar!(bool as "Boolean" {
     }
 });
 
-
 graphql_scalar!(i32 as "Int" {
     resolve(&self) -> Value {
         Value::int(*self)
@@ -115,6 +114,28 @@ graphql_scalar!(i32 as "Int" {
     }
 });
 
+graphql_scalar!(u32 as "Int" {
+    resolve(&self) -> Value {
+        if *self > (i32::max_value() as u32) {
+            panic!("u32 > {} cannot be used in GraphQL", i32::max_value());
+        }
+        Value::int(*self as i32)
+    }
+
+    from_input_value(v: &InputValue) -> Option<u32> {
+        match *v {
+            InputValue::Int(i) => {
+                if i < 0 {
+                    None
+                }
+                else {
+                    Some(i as u32)
+                }
+            },
+            _ => None,
+        }
+    }
+});
 
 graphql_scalar!(f64 as "Float" {
     resolve(&self) -> Value {
