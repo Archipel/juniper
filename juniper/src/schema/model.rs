@@ -2,11 +2,11 @@ use std::fmt;
 
 use fnv::FnvHashMap;
 
+use ast::Type;
+use executor::{Context, Registry};
+use schema::meta::{Argument, InterfaceMeta, MetaType, ObjectMeta, PlaceholderMeta, UnionMeta};
 use types::base::GraphQLType;
 use types::name::Name;
-use executor::{Context, Registry};
-use ast::Type;
-use schema::meta::{Argument, InterfaceMeta, MetaType, ObjectMeta, PlaceholderMeta, UnionMeta};
 
 /// Root query node of a schema
 ///
@@ -277,9 +277,9 @@ impl<'a> SchemaType<'a> {
     }
 
     pub fn is_possible_type(&self, abstract_type: &MetaType, possible_type: &MetaType) -> bool {
-        self.possible_types(abstract_type).into_iter().any(|t| {
-            (t as *const MetaType) == (possible_type as *const MetaType)
-        })
+        self.possible_types(abstract_type)
+            .into_iter()
+            .any(|t| (t as *const MetaType) == (possible_type as *const MetaType))
     }
 
     pub fn is_subtype<'b>(&self, sub_type: &Type<'b>, super_type: &Type<'b>) -> bool {
@@ -290,14 +290,14 @@ impl<'a> SchemaType<'a> {
         }
 
         match (super_type, sub_type) {
-            (&NonNullNamed(ref super_name), &NonNullNamed(ref sub_name)) |
-            (&Named(ref super_name), &Named(ref sub_name)) |
-            (&Named(ref super_name), &NonNullNamed(ref sub_name)) => {
+            (&NonNullNamed(ref super_name), &NonNullNamed(ref sub_name))
+            | (&Named(ref super_name), &Named(ref sub_name))
+            | (&Named(ref super_name), &NonNullNamed(ref sub_name)) => {
                 self.is_named_subtype(sub_name, super_name)
             }
-            (&NonNullList(ref super_inner), &NonNullList(ref sub_inner)) |
-            (&List(ref super_inner), &List(ref sub_inner)) |
-            (&List(ref super_inner), &NonNullList(ref sub_inner)) => {
+            (&NonNullList(ref super_inner), &NonNullList(ref sub_inner))
+            | (&List(ref super_inner), &List(ref sub_inner))
+            | (&List(ref super_inner), &NonNullList(ref sub_inner)) => {
                 self.is_subtype(sub_inner, super_inner)
             }
             _ => false,
@@ -319,6 +319,7 @@ impl<'a> SchemaType<'a> {
 }
 
 impl<'a> TypeType<'a> {
+    #[inline]
     pub fn to_concrete(&self) -> Option<&'a MetaType> {
         match *self {
             TypeType::Concrete(t) => Some(t),
@@ -326,6 +327,7 @@ impl<'a> TypeType<'a> {
         }
     }
 
+    #[inline]
     pub fn innermost_concrete(&self) -> &'a MetaType {
         match *self {
             TypeType::Concrete(t) => t,
@@ -333,6 +335,7 @@ impl<'a> TypeType<'a> {
         }
     }
 
+    #[inline]
     pub fn list_contents(&self) -> Option<&TypeType<'a>> {
         match *self {
             TypeType::List(ref n) => Some(n),
@@ -341,6 +344,7 @@ impl<'a> TypeType<'a> {
         }
     }
 
+    #[inline]
     pub fn is_non_null(&self) -> bool {
         match *self {
             TypeType::NonNull(_) => true,

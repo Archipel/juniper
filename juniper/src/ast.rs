@@ -1,10 +1,10 @@
-use std::fmt;
 use std::borrow::Cow;
+use std::fmt;
 use std::hash::Hash;
-use std::vec;
 use std::slice;
+use std::vec;
 
-use ordermap::OrderMap;
+use indexmap::IndexMap;
 
 use executor::Variables;
 use parser::Spanning;
@@ -259,7 +259,7 @@ impl InputValue {
     ///
     /// Similar to `InputValue::list`, it makes each key and value in the given
     /// hash map not contain any location information.
-    pub fn object<K>(o: OrderMap<K, InputValue>) -> InputValue
+    pub fn object<K>(o: IndexMap<K, InputValue>) -> InputValue
     where
         K: AsRef<str> + Eq + Hash,
     {
@@ -356,9 +356,9 @@ impl InputValue {
 
     /// Convert the input value to an unlocated object value.
     ///
-    /// This constructs a new OrderMap that contain references to the keys
+    /// This constructs a new IndexMap that contain references to the keys
     /// and values in `self`.
-    pub fn to_object_value(&self) -> Option<OrderMap<&str, &InputValue>> {
+    pub fn to_object_value(&self) -> Option<IndexMap<&str, &InputValue>> {
         match *self {
             InputValue::Object(ref o) => Some(
                 o.iter()
@@ -402,9 +402,9 @@ impl InputValue {
             (&Null, &Null) => true,
             (&Int(i1), &Int(i2)) => i1 == i2,
             (&Float(f1), &Float(f2)) => f1 == f2,
-            (&String(ref s1), &String(ref s2)) |
-            (&Enum(ref s1), &Enum(ref s2)) |
-            (&Variable(ref s1), &Variable(ref s2)) => s1 == s2,
+            (&String(ref s1), &String(ref s2))
+            | (&Enum(ref s1), &Enum(ref s2))
+            | (&Variable(ref s1), &Variable(ref s2)) => s1 == s2,
             (&Boolean(b1), &Boolean(b2)) => b1 == b2,
             (&List(ref l1), &List(ref l2)) => l1.iter()
                 .zip(l2.iter())
@@ -432,25 +432,25 @@ impl fmt::Display for InputValue {
             InputValue::Enum(ref v) => write!(f, "{}", v),
             InputValue::Variable(ref v) => write!(f, "${}", v),
             InputValue::List(ref v) => {
-                try!(write!(f, "["));
+                write!(f, "[")?;
 
                 for (i, spanning) in v.iter().enumerate() {
-                    try!(spanning.item.fmt(f));
+                    spanning.item.fmt(f)?;
                     if i < v.len() - 1 {
-                        try!(write!(f, ", "));
+                        write!(f, ", ")?;
                     }
                 }
 
                 write!(f, "]")
             }
             InputValue::Object(ref o) => {
-                try!(write!(f, "{{"));
+                write!(f, "{{")?;
 
                 for (i, &(ref k, ref v)) in o.iter().enumerate() {
-                    try!(write!(f, "{}: ", k.item));
-                    try!(v.item.fmt(f));
+                    write!(f, "{}: ", k.item)?;
+                    v.item.fmt(f)?;
                     if i < o.len() - 1 {
-                        try!(write!(f, ", "));
+                        write!(f, ", ")?;
                     }
                 }
 

@@ -1,8 +1,8 @@
 use ast::{Directive, Field};
-use validation::{ValidatorContext, Visitor};
 use parser::Spanning;
 use schema::meta::Field as FieldType;
 use schema::model::DirectiveType;
+use validation::{ValidatorContext, Visitor};
 
 pub struct ProvidedNonNullArguments {}
 
@@ -20,8 +20,8 @@ impl<'a> Visitor<'a> for ProvidedNonNullArguments {
         }) = ctx.parent_type().and_then(|t| t.field_by_name(field_name))
         {
             for meta_arg in meta_args {
-                if meta_arg.arg_type.is_non_null() &&
-                    field
+                if meta_arg.arg_type.is_non_null()
+                    && field
                         .item
                         .arguments
                         .as_ref()
@@ -54,8 +54,8 @@ impl<'a> Visitor<'a> for ProvidedNonNullArguments {
         }) = ctx.schema.directive_by_name(directive_name)
         {
             for meta_arg in meta_args {
-                if meta_arg.arg_type.is_non_null() &&
-                    directive
+                if meta_arg.arg_type.is_non_null()
+                    && directive
                         .item
                         .arguments
                         .as_ref()
@@ -79,18 +79,14 @@ impl<'a> Visitor<'a> for ProvidedNonNullArguments {
 fn field_error_message(field_name: &str, arg_name: &str, type_name: &str) -> String {
     format!(
         r#"Field "{}" argument "{}" of type "{}" is required but not provided"#,
-        field_name,
-        arg_name,
-        type_name
+        field_name, arg_name, type_name
     )
 }
 
 fn directive_error_message(directive_name: &str, arg_name: &str, type_name: &str) -> String {
     format!(
         r#"Directive "@{}" argument "{}" of type "{}" is required but not provided"#,
-        directive_name,
-        arg_name,
-        type_name
+        directive_name, arg_name, type_name
     )
 }
 
@@ -266,12 +262,10 @@ mod tests {
               }
             }
         "#,
-            &[
-                RuleError::new(
-                    &field_error_message("multipleReqs", "req1", "Int!"),
-                    &[SourcePosition::new(63, 3, 16)],
-                ),
-            ],
+            &[RuleError::new(
+                &field_error_message("multipleReqs", "req1", "Int!"),
+                &[SourcePosition::new(63, 3, 16)],
+            )],
         );
     }
 
@@ -310,12 +304,10 @@ mod tests {
               }
             }
         "#,
-            &[
-                RuleError::new(
-                    &field_error_message("multipleReqs", "req2", "Int!"),
-                    &[SourcePosition::new(63, 3, 16)],
-                ),
-            ],
+            &[RuleError::new(
+                &field_error_message("multipleReqs", "req2", "Int!"),
+                &[SourcePosition::new(63, 3, 16)],
+            )],
         );
     }
 

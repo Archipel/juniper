@@ -1,14 +1,14 @@
-mod input_object;
 mod enums;
+mod input_object;
 
 // This asserts that the input objects defined public actually became public
 #[allow(unused_imports)]
 use self::input_object::{NamedPublic, NamedPublicWithDescription};
 
 use executor::Variables;
-use value::Value;
 use schema::model::RootNode;
 use types::scalars::EmptyMutation;
+use value::Value;
 
 #[derive(GraphQLEnum)]
 #[graphql(name = "SampleEnum", _internal)]
@@ -78,13 +78,19 @@ fn test_execution() {
 
     assert_eq!(errs, []);
 
-    println!("Result: {:?}", result);
+    println!("Result: {:#?}", result);
 
-    assert_eq!(result, Value::object(vec![
-        ("sampleEnum", Value::string("ONE")),
-        ("first", Value::int(123)),
-        ("second", Value::int(30)),
-    ].into_iter().collect()));
+    assert_eq!(
+        result,
+        Value::object(
+            vec![
+                ("sampleEnum", Value::string("ONE")),
+                ("first", Value::int(123)),
+                ("second", Value::int(30)),
+            ].into_iter()
+                .collect()
+        )
+    );
 }
 
 #[test]
@@ -115,45 +121,73 @@ fn enum_introspection() {
 
     assert_eq!(errs, []);
 
-    println!("Result: {:?}", result);
+    println!("Result: {:#?}", result);
 
     let type_info = result
         .as_object_value()
         .expect("Result is not an object")
-        .get("__type")
+        .get_field_value("__type")
         .expect("__type field missing")
         .as_object_value()
         .expect("__type field not an object value");
 
-    assert_eq!(type_info.get("name"), Some(&Value::string("SampleEnum")));
-    assert_eq!(type_info.get("kind"), Some(&Value::string("ENUM")));
-    assert_eq!(type_info.get("description"), Some(&Value::null()));
-    assert_eq!(type_info.get("interfaces"), Some(&Value::null()));
-    assert_eq!(type_info.get("possibleTypes"), Some(&Value::null()));
-    assert_eq!(type_info.get("inputFields"), Some(&Value::null()));
-    assert_eq!(type_info.get("ofType"), Some(&Value::null()));
+    assert_eq!(
+        type_info.get_field_value("name"),
+        Some(&Value::string("SampleEnum"))
+    );
+    assert_eq!(
+        type_info.get_field_value("kind"),
+        Some(&Value::string("ENUM"))
+    );
+    assert_eq!(
+        type_info.get_field_value("description"),
+        Some(&Value::null())
+    );
+    assert_eq!(
+        type_info.get_field_value("interfaces"),
+        Some(&Value::null())
+    );
+    assert_eq!(
+        type_info.get_field_value("possibleTypes"),
+        Some(&Value::null())
+    );
+    assert_eq!(
+        type_info.get_field_value("inputFields"),
+        Some(&Value::null())
+    );
+    assert_eq!(type_info.get_field_value("ofType"), Some(&Value::null()));
 
     let values = type_info
-        .get("enumValues")
+        .get_field_value("enumValues")
         .expect("enumValues field missing")
         .as_list_value()
         .expect("enumValues not a list");
 
     assert_eq!(values.len(), 2);
 
-    assert!(values.contains(&Value::object(vec![
-        ("name", Value::string("ONE")),
-        ("description", Value::null()),
-        ("isDeprecated", Value::boolean(false)),
-        ("deprecationReason", Value::null()),
-    ].into_iter().collect())));
+    assert!(
+        values.contains(&Value::object(
+            vec![
+                ("name", Value::string("ONE")),
+                ("description", Value::null()),
+                ("isDeprecated", Value::boolean(false)),
+                ("deprecationReason", Value::null()),
+            ].into_iter()
+                .collect(),
+        ))
+    );
 
-    assert!(values.contains(&Value::object(vec![
-        ("name", Value::string("TWO")),
-        ("description", Value::null()),
-        ("isDeprecated", Value::boolean(false)),
-        ("deprecationReason", Value::null()),
-    ].into_iter().collect())));
+    assert!(
+        values.contains(&Value::object(
+            vec![
+                ("name", Value::string("TWO")),
+                ("description", Value::null()),
+                ("isDeprecated", Value::boolean(false)),
+                ("deprecationReason", Value::null()),
+            ].into_iter()
+                .collect(),
+        ))
+    );
 }
 
 #[test]
@@ -198,59 +232,97 @@ fn interface_introspection() {
 
     assert_eq!(errs, []);
 
-    println!("Result: {:?}", result);
+    println!("Result: {:#?}", result);
 
     let type_info = result
         .as_object_value()
         .expect("Result is not an object")
-        .get("__type")
+        .get_field_value("__type")
         .expect("__type field missing")
         .as_object_value()
         .expect("__type field not an object value");
 
-    assert_eq!(type_info.get("name"), Some(&Value::string("SampleInterface")));
-    assert_eq!(type_info.get("kind"), Some(&Value::string("INTERFACE")));
-    assert_eq!(type_info.get("description"), Some(&Value::string("A sample interface")));
-    assert_eq!(type_info.get("interfaces"), Some(&Value::null()));
-    assert_eq!(type_info.get("enumValues"), Some(&Value::null()));
-    assert_eq!(type_info.get("inputFields"), Some(&Value::null()));
-    assert_eq!(type_info.get("ofType"), Some(&Value::null()));
+    assert_eq!(
+        type_info.get_field_value("name"),
+        Some(&Value::string("SampleInterface"))
+    );
+    assert_eq!(
+        type_info.get_field_value("kind"),
+        Some(&Value::string("INTERFACE"))
+    );
+    assert_eq!(
+        type_info.get_field_value("description"),
+        Some(&Value::string("A sample interface"))
+    );
+    assert_eq!(
+        type_info.get_field_value("interfaces"),
+        Some(&Value::null())
+    );
+    assert_eq!(
+        type_info.get_field_value("enumValues"),
+        Some(&Value::null())
+    );
+    assert_eq!(
+        type_info.get_field_value("inputFields"),
+        Some(&Value::null())
+    );
+    assert_eq!(type_info.get_field_value("ofType"), Some(&Value::null()));
 
     let possible_types = type_info
-        .get("possibleTypes")
+        .get_field_value("possibleTypes")
         .expect("possibleTypes field missing")
         .as_list_value()
         .expect("possibleTypes not a list");
 
     assert_eq!(possible_types.len(), 1);
 
-    assert!(possible_types.contains(&Value::object(vec![
-        ("name", Value::string("Root")),
-    ].into_iter().collect())));
+    assert!(possible_types.contains(&Value::object(
+        vec![("name", Value::string("Root"))].into_iter().collect()
+    )));
 
     let fields = type_info
-        .get("fields")
+        .get_field_value("fields")
         .expect("fields field missing")
         .as_list_value()
         .expect("fields field not an object value");
 
     assert_eq!(fields.len(), 1);
 
-    assert!(fields.contains(&Value::object(vec![
-        ("name", Value::string("sampleEnum")),
-        ("description", Value::string("A sample field in the interface")),
-        ("args", Value::list(vec![])),
-        ("type", Value::object(vec![
-            ("name", Value::null()),
-            ("kind", Value::string("NON_NULL")),
-            ("ofType", Value::object(vec![
-                ("name", Value::string("SampleEnum")),
-                ("kind", Value::string("ENUM")),
-            ].into_iter().collect())),
-        ].into_iter().collect())),
-        ("isDeprecated", Value::boolean(false)),
-        ("deprecationReason", Value::null()),
-    ].into_iter().collect())));
+    assert!(
+        fields.contains(&Value::object(
+            vec![
+                ("name", Value::string("sampleEnum")),
+                (
+                    "description",
+                    Value::string("A sample field in the interface"),
+                ),
+                ("args", Value::list(vec![])),
+                (
+                    "type",
+                    Value::object(
+                        vec![
+                            ("name", Value::null()),
+                            ("kind", Value::string("NON_NULL")),
+                            (
+                                "ofType",
+                                Value::object(
+                                    vec![
+                                        ("name", Value::string("SampleEnum")),
+                                        ("kind", Value::string("ENUM")),
+                                    ].into_iter()
+                                        .collect(),
+                                ),
+                            ),
+                        ].into_iter()
+                            .collect(),
+                    ),
+                ),
+                ("isDeprecated", Value::boolean(false)),
+                ("deprecationReason", Value::null()),
+            ].into_iter()
+                .collect(),
+        ))
+    );
 }
 
 #[test]
@@ -306,33 +378,52 @@ fn object_introspection() {
 
     assert_eq!(errs, []);
 
-    println!("Result: {:?}", result);
+    println!("Result: {:#?}", result);
 
     let type_info = result
         .as_object_value()
         .expect("Result is not an object")
-        .get("__type")
+        .get_field_value("__type")
         .expect("__type field missing")
         .as_object_value()
         .expect("__type field not an object value");
 
-    assert_eq!(type_info.get("name"), Some(&Value::string("Root")));
-    assert_eq!(type_info.get("kind"), Some(&Value::string("OBJECT")));
-    assert_eq!(type_info.get("description"), Some(&Value::string("The root query object in the schema")));
     assert_eq!(
-        type_info.get("interfaces"),
-        Some(&Value::list(vec![
-            Value::object(vec![
-                ("name", Value::string("SampleInterface")),
-            ].into_iter().collect()),
-        ])));
-    assert_eq!(type_info.get("enumValues"), Some(&Value::null()));
-    assert_eq!(type_info.get("inputFields"), Some(&Value::null()));
-    assert_eq!(type_info.get("ofType"), Some(&Value::null()));
-    assert_eq!(type_info.get("possibleTypes"), Some(&Value::null()));
+        type_info.get_field_value("name"),
+        Some(&Value::string("Root"))
+    );
+    assert_eq!(
+        type_info.get_field_value("kind"),
+        Some(&Value::string("OBJECT"))
+    );
+    assert_eq!(
+        type_info.get_field_value("description"),
+        Some(&Value::string("The root query object in the schema"))
+    );
+    assert_eq!(
+        type_info.get_field_value("interfaces"),
+        Some(&Value::list(vec![Value::object(
+            vec![("name", Value::string("SampleInterface"))]
+                .into_iter()
+                .collect(),
+        )]))
+    );
+    assert_eq!(
+        type_info.get_field_value("enumValues"),
+        Some(&Value::null())
+    );
+    assert_eq!(
+        type_info.get_field_value("inputFields"),
+        Some(&Value::null())
+    );
+    assert_eq!(type_info.get_field_value("ofType"), Some(&Value::null()));
+    assert_eq!(
+        type_info.get_field_value("possibleTypes"),
+        Some(&Value::null())
+    );
 
     let fields = type_info
-        .get("fields")
+        .get_field_value("fields")
         .expect("fields field missing")
         .as_list_value()
         .expect("fields field not an object value");
@@ -341,62 +432,126 @@ fn object_introspection() {
 
     println!("Fields: {:#?}", fields);
 
-    assert!(fields.contains(&Value::object(vec![
-        ("name", Value::string("sampleEnum")),
-        ("description", Value::null()),
-        ("args", Value::list(vec![])),
-        ("type", Value::object(vec![
-            ("name", Value::null()),
-            ("kind", Value::string("NON_NULL")),
-            ("ofType", Value::object(vec![
-                ("name", Value::string("SampleEnum")),
-                ("kind", Value::string("ENUM")),
-            ].into_iter().collect())),
-        ].into_iter().collect())),
-        ("isDeprecated", Value::boolean(false)),
-        ("deprecationReason", Value::null()),
-    ].into_iter().collect())));
+    assert!(
+        fields.contains(&Value::object(
+            vec![
+                ("name", Value::string("sampleEnum")),
+                ("description", Value::null()),
+                ("args", Value::list(vec![])),
+                (
+                    "type",
+                    Value::object(
+                        vec![
+                            ("name", Value::null()),
+                            ("kind", Value::string("NON_NULL")),
+                            (
+                                "ofType",
+                                Value::object(
+                                    vec![
+                                        ("name", Value::string("SampleEnum")),
+                                        ("kind", Value::string("ENUM")),
+                                    ].into_iter()
+                                        .collect(),
+                                ),
+                            ),
+                        ].into_iter()
+                            .collect(),
+                    ),
+                ),
+                ("isDeprecated", Value::boolean(false)),
+                ("deprecationReason", Value::null()),
+            ].into_iter()
+                .collect(),
+        ))
+    );
 
-    assert!(fields.contains(&Value::object(vec![
-        ("name", Value::string("sampleScalar")),
-        ("description", Value::string("A sample scalar field on the object")),
-        ("args", Value::list(vec![
-            Value::object(vec![
-                ("name", Value::string("first")),
-                ("description", Value::string("The first number")),
-                ("type", Value::object(vec![
-                    ("name", Value::null()),
-                    ("kind", Value::string("NON_NULL")),
-                    ("ofType", Value::object(vec![
-                        ("name", Value::string("Int")),
-                        ("kind", Value::string("SCALAR")),
-                        ("ofType", Value::null()),
-                    ].into_iter().collect())),
-                ].into_iter().collect())),
-                ("defaultValue", Value::null()),
-            ].into_iter().collect()),
-            Value::object(vec![
-                ("name", Value::string("second")),
-                ("description", Value::string("The second number")),
-                ("type", Value::object(vec![
-                    ("name", Value::string("Int")),
-                    ("kind", Value::string("SCALAR")),
-                    ("ofType", Value::null()),
-                ].into_iter().collect())),
-                ("defaultValue", Value::string("123")),
-            ].into_iter().collect()),
-        ])),
-        ("type", Value::object(vec![
-            ("name", Value::null()),
-            ("kind", Value::string("NON_NULL")),
-            ("ofType", Value::object(vec![
-                ("name", Value::string("SampleScalar")),
-                ("kind", Value::string("SCALAR")),
-            ].into_iter().collect())),
-        ].into_iter().collect())),
-        ("isDeprecated", Value::boolean(false)),
-        ("deprecationReason", Value::null()),
-    ].into_iter().collect())));
+    assert!(
+        fields.contains(&Value::object(
+            vec![
+                ("name", Value::string("sampleScalar")),
+                (
+                    "description",
+                    Value::string("A sample scalar field on the object"),
+                ),
+                (
+                    "args",
+                    Value::list(vec![
+                        Value::object(
+                            vec![
+                                ("name", Value::string("first")),
+                                ("description", Value::string("The first number")),
+                                (
+                                    "type",
+                                    Value::object(
+                                        vec![
+                                            ("name", Value::null()),
+                                            ("kind", Value::string("NON_NULL")),
+                                            (
+                                                "ofType",
+                                                Value::object(
+                                                    vec![
+                                                        ("name", Value::string("Int")),
+                                                        ("kind", Value::string("SCALAR")),
+                                                        ("ofType", Value::null()),
+                                                    ].into_iter()
+                                                        .collect(),
+                                                ),
+                                            ),
+                                        ].into_iter()
+                                            .collect(),
+                                    ),
+                                ),
+                                ("defaultValue", Value::null()),
+                            ].into_iter()
+                                .collect(),
+                        ),
+                        Value::object(
+                            vec![
+                                ("name", Value::string("second")),
+                                ("description", Value::string("The second number")),
+                                (
+                                    "type",
+                                    Value::object(
+                                        vec![
+                                            ("name", Value::string("Int")),
+                                            ("kind", Value::string("SCALAR")),
+                                            ("ofType", Value::null()),
+                                        ].into_iter()
+                                            .collect(),
+                                    ),
+                                ),
+                                ("defaultValue", Value::string("123")),
+                            ].into_iter()
+                                .collect(),
+                        ),
+                    ]),
+                ),
+                (
+                    "type",
+                    Value::object(
+                        vec![
+                            ("name", Value::null()),
+                            ("kind", Value::string("NON_NULL")),
+                            (
+                                "ofType",
+                                Value::object(
+                                    vec![
+                                        ("name", Value::string("SampleScalar")),
+                                        ("kind", Value::string("SCALAR")),
+                                    ].into_iter()
+                                        .collect(),
+                                ),
+                            ),
+                        ].into_iter()
+                            .collect(),
+                    ),
+                ),
+                ("isDeprecated", Value::boolean(false)),
+                ("deprecationReason", Value::null()),
+            ].into_iter()
+                .collect(),
+        ))
+    );
 }
 
 #[test]
@@ -423,23 +578,29 @@ fn scalar_introspection() {
 
     assert_eq!(errs, []);
 
-    println!("Result: {:?}", result);
+    println!("Result: {:#?}", result);
 
     let type_info = result
         .as_object_value()
         .expect("Result is not an object")
-        .get("__type")
+        .get_field_value("__type")
         .expect("__type field missing");
 
-    assert_eq!(type_info, &Value::object(vec![
-        ("name", Value::string("SampleScalar")),
-        ("kind", Value::string("SCALAR")),
-        ("description", Value::null()),
-        ("fields", Value::null()),
-        ("interfaces", Value::null()),
-        ("possibleTypes", Value::null()),
-        ("enumValues", Value::null()),
-        ("inputFields", Value::null()),
-        ("ofType", Value::null()),
-    ].into_iter().collect()));
+    assert_eq!(
+        type_info,
+        &Value::object(
+            vec![
+                ("name", Value::string("SampleScalar")),
+                ("kind", Value::string("SCALAR")),
+                ("description", Value::null()),
+                ("fields", Value::null()),
+                ("interfaces", Value::null()),
+                ("possibleTypes", Value::null()),
+                ("enumValues", Value::null()),
+                ("inputFields", Value::null()),
+                ("ofType", Value::null()),
+            ].into_iter()
+                .collect()
+        )
+    );
 }

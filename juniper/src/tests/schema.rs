@@ -1,5 +1,5 @@
-use tests::model::{Character, Database, Droid, Episode, Human};
 use executor::Context;
+use tests::model::{Character, Database, Droid, Episode, Human};
 
 impl Context for Database {}
 
@@ -82,7 +82,6 @@ graphql_object!(<'a> &'a Droid: Database as "Droid" |&self| {
         self.primary_function()
     }
 });
-
 
 graphql_object!(Database: Database as "Query" |&self| {
     description: "The root query object of the schema"

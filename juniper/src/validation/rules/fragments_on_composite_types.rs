@@ -55,8 +55,7 @@ fn error_message(fragment_name: Option<&str>, on_type: &str) -> String {
     if let Some(name) = fragment_name {
         format!(
             r#"Fragment "{}" cannot condition non composite type "{}"#,
-            name,
-            on_type
+            name, on_type
         )
     } else {
         format!(
@@ -146,12 +145,10 @@ mod tests {
             bad
           }
         "#,
-            &[
-                RuleError::new(
-                    &error_message(Some("scalarFragment"), "Boolean"),
-                    &[SourcePosition::new(38, 1, 37)],
-                ),
-            ],
+            &[RuleError::new(
+                &error_message(Some("scalarFragment"), "Boolean"),
+                &[SourcePosition::new(38, 1, 37)],
+            )],
         );
     }
 
@@ -164,12 +161,10 @@ mod tests {
             bad
           }
         "#,
-            &[
-                RuleError::new(
-                    &error_message(Some("scalarFragment"), "FurColor"),
-                    &[SourcePosition::new(38, 1, 37)],
-                ),
-            ],
+            &[RuleError::new(
+                &error_message(Some("scalarFragment"), "FurColor"),
+                &[SourcePosition::new(38, 1, 37)],
+            )],
         );
     }
 
@@ -182,12 +177,10 @@ mod tests {
             stringField
           }
         "#,
-            &[
-                RuleError::new(
-                    &error_message(Some("inputFragment"), "ComplexInput"),
-                    &[SourcePosition::new(37, 1, 36)],
-                ),
-            ],
+            &[RuleError::new(
+                &error_message(Some("inputFragment"), "ComplexInput"),
+                &[SourcePosition::new(37, 1, 36)],
+            )],
         );
     }
 
@@ -202,12 +195,10 @@ mod tests {
             }
           }
         "#,
-            &[
-                RuleError::new(
-                    &error_message(None, "String"),
-                    &[SourcePosition::new(64, 2, 19)],
-                ),
-            ],
+            &[RuleError::new(
+                &error_message(None, "String"),
+                &[SourcePosition::new(64, 2, 19)],
+            )],
         );
     }
 }

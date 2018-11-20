@@ -1,6 +1,6 @@
 use ast::Field;
-use validation::{RuleError, ValidatorContext, Visitor};
 use parser::Spanning;
+use validation::{RuleError, ValidatorContext, Visitor};
 
 pub struct ScalarLeafs {}
 
@@ -39,8 +39,7 @@ impl<'a> Visitor<'a> for ScalarLeafs {
 fn no_allowed_error_message(field_name: &str, type_name: &str) -> String {
     format!(
         r#"Field "{}" must not have a selection since type {} has no subfields"#,
-        field_name,
-        type_name
+        field_name, type_name
     )
 }
 
@@ -78,12 +77,10 @@ mod tests {
             human
           }
         "#,
-            &[
-                RuleError::new(
-                    &required_error_message("human", "Human"),
-                    &[SourcePosition::new(67, 2, 12)],
-                ),
-            ],
+            &[RuleError::new(
+                &required_error_message("human", "Human"),
+                &[SourcePosition::new(67, 2, 12)],
+            )],
         );
     }
 
@@ -96,12 +93,10 @@ mod tests {
             human { pets }
           }
         "#,
-            &[
-                RuleError::new(
-                    &required_error_message("pets", "[Pet]"),
-                    &[SourcePosition::new(33, 2, 20)],
-                ),
-            ],
+            &[RuleError::new(
+                &required_error_message("pets", "[Pet]"),
+                &[SourcePosition::new(33, 2, 20)],
+            )],
         );
     }
 
@@ -126,12 +121,10 @@ mod tests {
             barks { sinceWhen }
           }
         "#,
-            &[
-                RuleError::new(
-                    &no_allowed_error_message("barks", "Boolean"),
-                    &[SourcePosition::new(77, 2, 12)],
-                ),
-            ],
+            &[RuleError::new(
+                &no_allowed_error_message("barks", "Boolean"),
+                &[SourcePosition::new(77, 2, 12)],
+            )],
         );
     }
 
@@ -144,12 +137,10 @@ mod tests {
             furColor { inHexdec }
           }
         "#,
-            &[
-                RuleError::new(
-                    &no_allowed_error_message("furColor", "FurColor"),
-                    &[SourcePosition::new(74, 2, 12)],
-                ),
-            ],
+            &[RuleError::new(
+                &no_allowed_error_message("furColor", "FurColor"),
+                &[SourcePosition::new(74, 2, 12)],
+            )],
         );
     }
 
@@ -162,12 +153,10 @@ mod tests {
             doesKnowCommand(dogCommand: SIT) { sinceWhen }
           }
         "#,
-            &[
-                RuleError::new(
-                    &no_allowed_error_message("doesKnowCommand", "Boolean"),
-                    &[SourcePosition::new(76, 2, 12)],
-                ),
-            ],
+            &[RuleError::new(
+                &no_allowed_error_message("doesKnowCommand", "Boolean"),
+                &[SourcePosition::new(76, 2, 12)],
+            )],
         );
     }
 
@@ -180,12 +169,10 @@ mod tests {
             name @include(if: true) { isAlsoHumanName }
           }
         "#,
-            &[
-                RuleError::new(
-                    &no_allowed_error_message("name", "String"),
-                    &[SourcePosition::new(82, 2, 12)],
-                ),
-            ],
+            &[RuleError::new(
+                &no_allowed_error_message("name", "String"),
+                &[SourcePosition::new(82, 2, 12)],
+            )],
         );
     }
 
@@ -198,12 +185,10 @@ mod tests {
             doesKnowCommand(dogCommand: SIT) @include(if: true) { sinceWhen }
           }
         "#,
-            &[
-                RuleError::new(
-                    &no_allowed_error_message("doesKnowCommand", "Boolean"),
-                    &[SourcePosition::new(89, 2, 12)],
-                ),
-            ],
+            &[RuleError::new(
+                &no_allowed_error_message("doesKnowCommand", "Boolean"),
+                &[SourcePosition::new(89, 2, 12)],
+            )],
         );
     }
 

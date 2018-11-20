@@ -1,7 +1,7 @@
-use std::collections::{HashMap, HashSet};
 use ast::{Document, Fragment, FragmentSpread, InputValue, Operation, VariableDefinition};
-use validation::{RuleError, ValidatorContext, Visitor};
 use parser::{SourcePosition, Spanning};
+use std::collections::{HashMap, HashSet};
+use validation::{RuleError, ValidatorContext, Visitor};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Scope<'a> {
@@ -150,8 +150,7 @@ fn error_message(var_name: &str, op_name: Option<&str>) -> String {
     if let Some(op_name) = op_name {
         format!(
             r#"Variable "${}" is not defined by operation "{}""#,
-            var_name,
-            op_name
+            var_name, op_name
         )
     } else {
         format!(r#"Variable "${}" is not defined"#, var_name)
@@ -303,15 +302,13 @@ mod tests {
             field(a: $a, b: $b, c: $c, d: $d)
           }
         "#,
-            &[
-                RuleError::new(
-                    &error_message("d", Some("Foo")),
-                    &[
-                        SourcePosition::new(101, 2, 42),
-                        SourcePosition::new(11, 1, 10),
-                    ],
-                ),
-            ],
+            &[RuleError::new(
+                &error_message("d", Some("Foo")),
+                &[
+                    SourcePosition::new(101, 2, 42),
+                    SourcePosition::new(11, 1, 10),
+                ],
+            )],
         );
     }
 
@@ -324,15 +321,13 @@ mod tests {
             field(a: $a)
           }
         "#,
-            &[
-                RuleError::new(
-                    &error_message("a", None),
-                    &[
-                        SourcePosition::new(34, 2, 21),
-                        SourcePosition::new(11, 1, 10),
-                    ],
-                ),
-            ],
+            &[RuleError::new(
+                &error_message("a", None),
+                &[
+                    SourcePosition::new(34, 2, 21),
+                    SourcePosition::new(11, 1, 10),
+                ],
+            )],
         );
     }
 
@@ -376,15 +371,13 @@ mod tests {
             field(a: $a)
           }
         "#,
-            &[
-                RuleError::new(
-                    &error_message("a", None),
-                    &[
-                        SourcePosition::new(102, 5, 21),
-                        SourcePosition::new(11, 1, 10),
-                    ],
-                ),
-            ],
+            &[RuleError::new(
+                &error_message("a", None),
+                &[
+                    SourcePosition::new(102, 5, 21),
+                    SourcePosition::new(11, 1, 10),
+                ],
+            )],
         );
     }
 
@@ -410,15 +403,13 @@ mod tests {
             field(c: $c)
           }
         "#,
-            &[
-                RuleError::new(
-                    &error_message("c", Some("Foo")),
-                    &[
-                        SourcePosition::new(358, 15, 21),
-                        SourcePosition::new(11, 1, 10),
-                    ],
-                ),
-            ],
+            &[RuleError::new(
+                &error_message("c", Some("Foo")),
+                &[
+                    SourcePosition::new(358, 15, 21),
+                    SourcePosition::new(11, 1, 10),
+                ],
+            )],
         );
     }
 

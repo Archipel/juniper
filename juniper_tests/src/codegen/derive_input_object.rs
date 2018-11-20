@@ -1,8 +1,7 @@
 #[cfg(test)]
 use fnv::FnvHashMap;
 
-#[cfg(test)]
-use juniper::{self, FromInputValue, GraphQLType, InputValue};
+use juniper::{self, FromInputValue, GraphQLType, InputValue, ToInputValue};
 
 #[derive(GraphQLInputObject, Debug, PartialEq)]
 #[graphql(name = "MyInput", description = "input descr")]
@@ -13,6 +12,73 @@ struct Input {
 
     #[graphql(default)]
     other: Option<bool>,
+}
+
+/// Object comment.
+#[derive(GraphQLInputObject, Debug, PartialEq)]
+struct DocComment {
+    /// Field comment.
+    regular_field: bool,
+}
+
+/// Doc 1.
+/// Doc 2.
+///
+/// Doc 4.
+#[derive(GraphQLInputObject, Debug, PartialEq)]
+struct MultiDocComment {
+    /// Field 1.
+    /// Field 2.
+    regular_field: bool,
+}
+
+/// This is not used as the description.
+#[derive(GraphQLInputObject, Debug, PartialEq)]
+#[graphql(description = "obj override")]
+struct OverrideDocComment {
+    /// This is not used as the description.
+    #[graphql(description = "field override")]
+    regular_field: bool,
+}
+
+#[derive(Debug, PartialEq)]
+struct Fake;
+
+impl<'a> FromInputValue for &'a Fake {
+    fn from_input_value(_v: &InputValue) -> Option<&'a Fake> {
+        None
+    }
+}
+
+impl<'a> ToInputValue for &'a Fake {
+    fn to_input_value(&self) -> InputValue {
+        InputValue::string("this is fake".to_string())
+    }
+}
+
+impl<'a> GraphQLType for &'a Fake {
+    type Context = ();
+    type TypeInfo = ();
+
+    fn name(_: &()) -> Option<&'static str> {
+        None
+    }
+    fn meta<'r>(_: &(), registry: &mut juniper::Registry<'r>) -> juniper::meta::MetaType<'r> {
+        let meta = registry.build_enum_type::<&'a Fake>(
+            &(),
+            &[juniper::meta::EnumValue {
+                name: "fake".to_string(),
+                description: None,
+                deprecation_reason: None,
+            }],
+        );
+        meta.into_meta()
+    }
+}
+
+#[derive(GraphQLInputObject, Debug, PartialEq)]
+struct WithLifetime<'a> {
+    regular_field: &'a Fake,
 }
 
 #[test]
@@ -32,11 +98,14 @@ fn test_derived_input_object() {
     })).unwrap();
 
     let output_no_defaults: Input = FromInputValue::from_input_value(&input_no_defaults).unwrap();
-    assert_eq!(output_no_defaults, Input{
-        regular_field: "a".into(),
-        c: 33,
-        other: None,
-    });
+    assert_eq!(
+        output_no_defaults,
+        Input {
+            regular_field: "a".into(),
+            c: 33,
+            other: None,
+        }
+    );
 
     // Test with all values supplied.
 
@@ -47,9 +116,36 @@ fn test_derived_input_object() {
     })).unwrap();
 
     let output: Input = FromInputValue::from_input_value(&input).unwrap();
-    assert_eq!(output, Input{
-        regular_field: "a".into(),
-        c: 55,
-        other: Some(true),
-    });
+    assert_eq!(
+        output,
+        Input {
+            regular_field: "a".into(),
+            c: 55,
+            other: Some(true),
+        }
+    );
+}
+
+#[test]
+fn test_doc_comment() {
+    let mut registry = juniper::Registry::new(FnvHashMap::default());
+    let meta = DocComment::meta(&(), &mut registry);
+    assert_eq!(meta.description(), Some(&"Object comment.".to_string()));
+}
+
+#[test]
+fn test_multi_doc_comment() {
+    let mut registry = juniper::Registry::new(FnvHashMap::default());
+    let meta = MultiDocComment::meta(&(), &mut registry);
+    assert_eq!(
+        meta.description(),
+        Some(&"Doc 1. Doc 2.\nDoc 4.".to_string())
+    );
+}
+
+#[test]
+fn test_doc_comment_override() {
+    let mut registry = juniper::Registry::new(FnvHashMap::default());
+    let meta = OverrideDocComment::meta(&(), &mut registry);
+    assert_eq!(meta.description(), Some(&"obj override".to_string()));
 }

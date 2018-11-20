@@ -44,7 +44,6 @@ graphql_scalar!(ID as "ID" {
     }
 });
 
-
 graphql_scalar!(String as "String" {
     resolve(&self) -> Value {
         Value::string(self)
@@ -85,8 +84,6 @@ impl<'a> ToInputValue for &'a str {
         InputValue::string(self)
     }
 }
-
-
 
 graphql_scalar!(bool as "Boolean" {
     resolve(&self) -> Value {
@@ -144,7 +141,6 @@ graphql_scalar!(u32 as "Int" {
         }
     }
 });
-
 graphql_scalar!(f64 as "Float" {
     resolve(&self) -> Value {
         Value::float(*self)
@@ -152,13 +148,12 @@ graphql_scalar!(f64 as "Float" {
 
     from_input_value(v: &InputValue) -> Option<f64> {
         match *v {
-            InputValue::Int(i) => Some(i as f64),
+            InputValue::Int(i) => Some(f64::from(i)),
             InputValue::Float(f) => Some(f),
             _ => None,
         }
     }
 });
-
 
 impl GraphQLType for () {
     type Context = ();
@@ -178,7 +173,6 @@ impl FromInputValue for () {
         None
     }
 }
-
 
 /// Utility type to define read-only schemas
 ///

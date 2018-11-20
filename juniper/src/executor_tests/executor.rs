@@ -1,8 +1,8 @@
 mod field_execution {
-    use value::Value;
     use ast::InputValue;
     use schema::model::RootNode;
     use types::scalars::EmptyMutation;
+    use value::Value;
 
     struct DataType;
     struct DeepDataType;
@@ -61,56 +61,76 @@ mod field_execution {
             e
           }";
 
-        let vars = vec![
-            ("size".to_owned(), InputValue::int(100))
-        ].into_iter()
+        let vars = vec![("size".to_owned(), InputValue::int(100))]
+            .into_iter()
             .collect();
 
         let (result, errs) = ::execute(doc, None, &schema, &vars, &()).expect("Execution failed");
 
         assert_eq!(errs, []);
 
-        println!("Result: {:?}", result);
+        println!("Result: {:#?}", result);
 
         assert_eq!(
             result,
-            Value::object(vec![
-                ("a", Value::string("Apple")),
-                ("b", Value::string("Banana")),
-                ("x", Value::string("Cookie")),
-                ("d", Value::string("Donut")),
-                ("e", Value::string("Egg")),
-                ("f", Value::string("Fish")),
-                ("pic", Value::string("Pic of size: 100")),
-                ("deep", Value::object(vec![
-                    ("a", Value::string("Already Been Done")),
-                    ("b", Value::string("Boring")),
-                    ("c", Value::list(vec![
-                        Value::string("Contrived"),
-                        Value::null(),
-                        Value::string("Confusing"),
-                    ])),
-                    ("deeper", Value::list(vec![
-                        Value::object(vec![
-                            ("a", Value::string("Apple")),
-                            ("b", Value::string("Banana")),
-                        ].into_iter().collect()),
-                        Value::null(),
-                        Value::object(vec![
-                            ("a", Value::string("Apple")),
-                            ("b", Value::string("Banana")),
-                        ].into_iter().collect()),
-                    ])),
-                ].into_iter().collect())),
-            ].into_iter().collect()));
+            Value::object(
+                vec![
+                    ("a", Value::string("Apple")),
+                    ("b", Value::string("Banana")),
+                    ("x", Value::string("Cookie")),
+                    ("d", Value::string("Donut")),
+                    ("e", Value::string("Egg")),
+                    ("f", Value::string("Fish")),
+                    ("pic", Value::string("Pic of size: 100")),
+                    (
+                        "deep",
+                        Value::object(
+                            vec![
+                                ("a", Value::string("Already Been Done")),
+                                ("b", Value::string("Boring")),
+                                (
+                                    "c",
+                                    Value::list(vec![
+                                        Value::string("Contrived"),
+                                        Value::null(),
+                                        Value::string("Confusing"),
+                                    ]),
+                                ),
+                                (
+                                    "deeper",
+                                    Value::list(vec![
+                                        Value::object(
+                                            vec![
+                                                ("a", Value::string("Apple")),
+                                                ("b", Value::string("Banana")),
+                                            ].into_iter()
+                                                .collect(),
+                                        ),
+                                        Value::null(),
+                                        Value::object(
+                                            vec![
+                                                ("a", Value::string("Apple")),
+                                                ("b", Value::string("Banana")),
+                                            ].into_iter()
+                                                .collect(),
+                                        ),
+                                    ]),
+                                ),
+                            ].into_iter()
+                                .collect(),
+                        ),
+                    ),
+                ].into_iter()
+                    .collect()
+            )
+        );
     }
 }
 
-
 mod merge_parallel_fragments {
-    use value::Value;
     use schema::model::RootNode;
     use types::scalars::EmptyMutation;
+    use value::Value;
 
     struct Type;
 
@@ -141,31 +161,162 @@ mod merge_parallel_fragments {
 
         assert_eq!(errs, []);
 
-        println!("Result: {:?}", result);
+        println!("Result: {:#?}", result);
 
         assert_eq!(
             result,
-            Value::object(vec![
-                ("a", Value::string("Apple")),
-                ("b", Value::string("Banana")),
-                ("deep", Value::object(vec![
+            Value::object(
+                vec![
+                    ("a", Value::string("Apple")),
                     ("b", Value::string("Banana")),
-                    ("deeper", Value::object(vec![
-                        ("b", Value::string("Banana")),
-                        ("c", Value::string("Cherry")),
-                    ].into_iter().collect())),
+                    (
+                        "deep",
+                        Value::object(
+                            vec![
+                                ("b", Value::string("Banana")),
+                                (
+                                    "deeper",
+                                    Value::object(
+                                        vec![
+                                            ("b", Value::string("Banana")),
+                                            ("c", Value::string("Cherry")),
+                                        ].into_iter()
+                                            .collect(),
+                                    ),
+                                ),
+                                ("c", Value::string("Cherry")),
+                            ].into_iter()
+                                .collect(),
+                        ),
+                    ),
                     ("c", Value::string("Cherry")),
-                ].into_iter().collect())),
-                ("c", Value::string("Cherry")),
-            ].into_iter().collect()));
+                ].into_iter()
+                    .collect()
+            )
+        );
+    }
+}
+
+mod merge_parallel_inline_fragments {
+    use schema::model::RootNode;
+    use types::scalars::EmptyMutation;
+    use value::Value;
+
+    struct Type;
+    struct Other;
+
+    graphql_object!(Type: () |&self| {
+        field a() -> &str { "Apple" }
+        field b() -> &str { "Banana" }
+        field c() -> &str { "Cherry" }
+        field deep() -> Type { Type }
+        field other() -> Vec<Other> { vec![Other, Other] }
+    });
+
+    graphql_object!(Other: () |&self| {
+        field a() -> &str { "Apple" }
+        field b() -> &str { "Banana" }
+        field c() -> &str { "Cherry" }
+        field deep() -> Type { Type }
+        field other() -> Vec<Other> { vec![Other, Other] }
+    });
+
+    #[test]
+    fn test() {
+        let schema = RootNode::new(Type, EmptyMutation::<()>::new());
+        let doc = r"
+          { a, ...FragOne }
+          fragment FragOne on Type {
+            b
+            deep: deep { 
+                b
+                deeper: other {
+                    deepest: deep {
+                        b
+                    }
+                }
+
+                ... on Type {
+                    c
+                    deeper: other {
+                        deepest: deep {
+                            c
+                        }
+                    }
+                }
+            }
+
+            c
+          }";
+
+        let vars = vec![].into_iter().collect();
+
+        let (result, errs) = ::execute(doc, None, &schema, &vars, &()).expect("Execution failed");
+
+        assert_eq!(errs, []);
+
+        println!("Result: {:#?}", result);
+
+        assert_eq!(
+            result,
+            Value::object(
+                vec![
+                    ("a", Value::string("Apple")),
+                    ("b", Value::string("Banana")),
+                    (
+                        "deep",
+                        Value::object(
+                            vec![
+                                ("b", Value::string("Banana")),
+                                (
+                                    "deeper",
+                                    Value::list(vec![
+                                        Value::object(
+                                            vec![(
+                                                "deepest",
+                                                Value::object(
+                                                    vec![
+                                                        ("b", Value::string("Banana")),
+                                                        ("c", Value::string("Cherry")),
+                                                    ].into_iter()
+                                                        .collect(),
+                                                ),
+                                            )].into_iter()
+                                                .collect(),
+                                        ),
+                                        Value::object(
+                                            vec![(
+                                                "deepest",
+                                                Value::object(
+                                                    vec![
+                                                        ("b", Value::string("Banana")),
+                                                        ("c", Value::string("Cherry")),
+                                                    ].into_iter()
+                                                        .collect(),
+                                                ),
+                                            )].into_iter()
+                                                .collect(),
+                                        ),
+                                    ]),
+                                ),
+                                ("c", Value::string("Cherry")),
+                            ].into_iter()
+                                .collect(),
+                        ),
+                    ),
+                    ("c", Value::string("Cherry")),
+                ].into_iter()
+                    .collect()
+            )
+        );
     }
 }
 
 mod threads_context_correctly {
-    use value::Value;
-    use types::scalars::EmptyMutation;
-    use schema::model::RootNode;
     use executor::Context;
+    use schema::model::RootNode;
+    use types::scalars::EmptyMutation;
+    use value::Value;
 
     struct Schema;
 
@@ -198,24 +349,27 @@ mod threads_context_correctly {
 
         assert_eq!(errs, []);
 
-        println!("Result: {:?}", result);
+        println!("Result: {:#?}", result);
 
         assert_eq!(
             result,
-            Value::object(vec![
-                ("a", Value::string("Context value")),
-            ].into_iter().collect()));
+            Value::object(
+                vec![("a", Value::string("Context value"))]
+                    .into_iter()
+                    .collect()
+            )
+        );
     }
 }
 
 mod dynamic_context_switching {
-    use ordermap::OrderMap;
+    use indexmap::IndexMap;
 
-    use value::Value;
-    use types::scalars::EmptyMutation;
-    use schema::model::RootNode;
-    use parser::SourcePosition;
     use executor::{Context, ExecutionError, FieldError, FieldResult};
+    use parser::SourcePosition;
+    use schema::model::RootNode;
+    use types::scalars::EmptyMutation;
+    use value::Value;
 
     struct Schema;
 
@@ -224,7 +378,7 @@ mod dynamic_context_switching {
     }
 
     struct OuterContext {
-        items: OrderMap<i32, InnerContext>,
+        items: IndexMap<i32, InnerContext>,
     }
 
     impl Context for OuterContext {}
@@ -272,8 +426,18 @@ mod dynamic_context_switching {
 
         let ctx = OuterContext {
             items: vec![
-                (0, InnerContext { value: "First value".to_owned() }),
-                (1, InnerContext { value: "Second value".to_owned() }),
+                (
+                    0,
+                    InnerContext {
+                        value: "First value".to_owned(),
+                    },
+                ),
+                (
+                    1,
+                    InnerContext {
+                        value: "Second value".to_owned(),
+                    },
+                ),
             ].into_iter()
                 .collect(),
         };
@@ -282,16 +446,25 @@ mod dynamic_context_switching {
 
         assert_eq!(errs, []);
 
-        println!("Result: {:?}", result);
+        println!("Result: {:#?}", result);
 
         assert_eq!(
             result,
-            Value::object(vec![
-                ("first", Value::object(vec![
-                    ("value", Value::string("First value")),
-                ].into_iter().collect())),
-                ("missing", Value::null()),
-            ].into_iter().collect()));
+            Value::object(
+                vec![
+                    (
+                        "first",
+                        Value::object(
+                            vec![("value", Value::string("First value"))]
+                                .into_iter()
+                                .collect(),
+                        ),
+                    ),
+                    ("missing", Value::null()),
+                ].into_iter()
+                    .collect()
+            )
+        );
     }
 
     #[test]
@@ -307,8 +480,18 @@ mod dynamic_context_switching {
 
         let ctx = OuterContext {
             items: vec![
-                (0, InnerContext { value: "First value".to_owned() }),
-                (1, InnerContext { value: "Second value".to_owned() }),
+                (
+                    0,
+                    InnerContext {
+                        value: "First value".to_owned(),
+                    },
+                ),
+                (
+                    1,
+                    InnerContext {
+                        value: "Second value".to_owned(),
+                    },
+                ),
             ].into_iter()
                 .collect(),
         };
@@ -317,15 +500,22 @@ mod dynamic_context_switching {
 
         assert_eq!(errs, vec![]);
 
-        println!("Result: {:?}", result);
+        println!("Result: {:#?}", result);
 
         assert_eq!(
             result,
-            Value::object(vec![
-                ("first", Value::object(vec![
-                    ("value", Value::string("First value")),
-                ].into_iter().collect())),
-            ].into_iter().collect()));
+            Value::object(
+                vec![(
+                    "first",
+                    Value::object(
+                        vec![("value", Value::string("First value"))]
+                            .into_iter()
+                            .collect(),
+                    ),
+                )].into_iter()
+                    .collect()
+            )
+        );
     }
 
     #[test]
@@ -341,23 +531,34 @@ mod dynamic_context_switching {
 
         let ctx = OuterContext {
             items: vec![
-                (0, InnerContext { value: "First value".to_owned() }),
-                (1, InnerContext { value: "Second value".to_owned() }),
+                (
+                    0,
+                    InnerContext {
+                        value: "First value".to_owned(),
+                    },
+                ),
+                (
+                    1,
+                    InnerContext {
+                        value: "Second value".to_owned(),
+                    },
+                ),
             ].into_iter()
                 .collect(),
         };
 
         let (result, errs) = ::execute(doc, None, &schema, &vars, &ctx).expect("Execution failed");
 
-        assert_eq!(errs, vec![
-            ExecutionError::new(
+        assert_eq!(
+            errs,
+            vec![ExecutionError::new(
                 SourcePosition::new(25, 2, 12),
                 &["missing"],
                 FieldError::new("Could not find key 2", Value::null()),
-            ),
-        ]);
+            )]
+        );
 
-        println!("Result: {:?}", result);
+        println!("Result: {:#?}", result);
 
         assert_eq!(result, Value::null());
     }
@@ -377,33 +578,53 @@ mod dynamic_context_switching {
 
         let ctx = OuterContext {
             items: vec![
-                (0, InnerContext { value: "First value".to_owned() }),
-                (1, InnerContext { value: "Second value".to_owned() }),
+                (
+                    0,
+                    InnerContext {
+                        value: "First value".to_owned(),
+                    },
+                ),
+                (
+                    1,
+                    InnerContext {
+                        value: "Second value".to_owned(),
+                    },
+                ),
             ].into_iter()
                 .collect(),
         };
 
         let (result, errs) = ::execute(doc, None, &schema, &vars, &ctx).expect("Execution failed");
 
-        assert_eq!(errs, [
-            ExecutionError::new(
+        assert_eq!(
+            errs,
+            [ExecutionError::new(
                 SourcePosition::new(123, 4, 12),
                 &["tooLarge"],
                 FieldError::new("Key too large: 200", Value::null()),
-            ),
-        ]);
+            )]
+        );
 
-        println!("Result: {:?}", result);
+        println!("Result: {:#?}", result);
 
         assert_eq!(
             result,
-            Value::object(vec![
-                ("first", Value::object(vec![
-                    ("value", Value::string("First value")),
-                ].into_iter().collect())),
-                ("missing", Value::null()),
-                ("tooLarge", Value::null()),
-            ].into_iter().collect()));
+            Value::object(
+                vec![
+                    (
+                        "first",
+                        Value::object(
+                            vec![("value", Value::string("First value"))]
+                                .into_iter()
+                                .collect(),
+                        ),
+                    ),
+                    ("missing", Value::null()),
+                    ("tooLarge", Value::null()),
+                ].into_iter()
+                    .collect()
+            )
+        );
     }
 
     #[test]
@@ -415,8 +636,18 @@ mod dynamic_context_switching {
 
         let ctx = OuterContext {
             items: vec![
-                (0, InnerContext { value: "First value".to_owned() }),
-                (1, InnerContext { value: "Second value".to_owned() }),
+                (
+                    0,
+                    InnerContext {
+                        value: "First value".to_owned(),
+                    },
+                ),
+                (
+                    1,
+                    InnerContext {
+                        value: "Second value".to_owned(),
+                    },
+                ),
             ].into_iter()
                 .collect(),
         };
@@ -425,27 +656,51 @@ mod dynamic_context_switching {
 
         assert_eq!(errs, []);
 
-        println!("Result: {:?}", result);
+        println!("Result: {:#?}", result);
 
         assert_eq!(
             result,
-            Value::object(vec![
-                ("first", Value::object(vec![
-                    ("value", Value::string("First value")),
-                ].into_iter().collect())),
-            ].into_iter().collect()));
+            Value::object(
+                vec![(
+                    "first",
+                    Value::object(
+                        vec![("value", Value::string("First value"))]
+                            .into_iter()
+                            .collect(),
+                    ),
+                )].into_iter()
+                    .collect()
+            )
+        );
     }
 }
 
 mod propagates_errors_to_nullable_fields {
-    use value::Value;
-    use schema::model::RootNode;
-    use executor::{ExecutionError, FieldError, FieldResult};
+    use executor::{ExecutionError, FieldError, FieldResult, IntoFieldError};
     use parser::SourcePosition;
+    use schema::model::RootNode;
     use types::scalars::EmptyMutation;
+    use value::Value;
 
     struct Schema;
     struct Inner;
+
+    enum CustomError {
+        NotFound,
+    }
+
+    impl IntoFieldError for CustomError {
+        fn into_field_error(self) -> FieldError {
+            match self {
+                CustomError::NotFound => FieldError::new(
+                    "Not Found",
+                    graphql_value!({
+                        "type": "NOT_FOUND"
+                    }),
+                ),
+            }
+        }
+    }
 
     graphql_object!(Schema: () |&self| {
         field inner() -> Inner { Inner }
@@ -458,6 +713,7 @@ mod propagates_errors_to_nullable_fields {
         field non_nullable_field() -> Inner { Inner }
         field nullable_error_field() -> FieldResult<Option<&str>> { Err("Error for nullableErrorField")? }
         field non_nullable_error_field() -> FieldResult<&str> { Err("Error for nonNullableErrorField")? }
+        field custom_error_field() -> Result<&str, CustomError> { Err(CustomError::NotFound) }
     });
 
     #[test]
@@ -469,21 +725,21 @@ mod propagates_errors_to_nullable_fields {
 
         let (result, errs) = ::execute(doc, None, &schema, &vars, &()).expect("Execution failed");
 
-        println!("Result: {:?}", result);
+        println!("Result: {:#?}", result);
 
         assert_eq!(
             result,
-            graphql_value!({ "inner": { "nullableErrorField": None } }));
+            graphql_value!({ "inner": { "nullableErrorField": None } })
+        );
 
         assert_eq!(
             errs,
-            vec![
-                ExecutionError::new(
-                    SourcePosition::new(10, 0, 10),
-                    &["inner", "nullableErrorField"],
-                    FieldError::new("Error for nullableErrorField", Value::null()),
-                ),
-            ]);
+            vec![ExecutionError::new(
+                SourcePosition::new(10, 0, 10),
+                &["inner", "nullableErrorField"],
+                FieldError::new("Error for nullableErrorField", Value::null()),
+            )]
+        );
     }
 
     #[test]
@@ -495,21 +751,41 @@ mod propagates_errors_to_nullable_fields {
 
         let (result, errs) = ::execute(doc, None, &schema, &vars, &()).expect("Execution failed");
 
-        println!("Result: {:?}", result);
+        println!("Result: {:#?}", result);
 
-        assert_eq!(
-            result,
-            graphql_value!(None));
+        assert_eq!(result, graphql_value!(None));
 
         assert_eq!(
             errs,
-            vec![
-                ExecutionError::new(
-                    SourcePosition::new(10, 0, 10),
-                    &["inner", "nonNullableErrorField"],
-                    FieldError::new("Error for nonNullableErrorField", Value::null()),
-                ),
-            ]);
+            vec![ExecutionError::new(
+                SourcePosition::new(10, 0, 10),
+                &["inner", "nonNullableErrorField"],
+                FieldError::new("Error for nonNullableErrorField", Value::null()),
+            )]
+        );
+    }
+
+    #[test]
+    fn custom_error_first_level() {
+        let schema = RootNode::new(Schema, EmptyMutation::<()>::new());
+        let doc = r"{ inner { customErrorField } }";
+
+        let vars = vec![].into_iter().collect();
+
+        let (result, errs) = ::execute(doc, None, &schema, &vars, &()).expect("Execution failed");
+
+        println!("Result: {:#?}", result);
+
+        assert_eq!(result, graphql_value!(None));
+
+        assert_eq!(
+            errs,
+            vec![ExecutionError::new(
+                SourcePosition::new(10, 0, 10),
+                &["inner", "customErrorField"],
+                FieldError::new("Not Found", graphql_value!({ "type": "NOT_FOUND" })),
+            )]
+        );
     }
 
     #[test]
@@ -521,21 +797,21 @@ mod propagates_errors_to_nullable_fields {
 
         let (result, errs) = ::execute(doc, None, &schema, &vars, &()).expect("Execution failed");
 
-        println!("Result: {:?}", result);
+        println!("Result: {:#?}", result);
 
         assert_eq!(
             result,
-            graphql_value!({ "inner": { "nullableField": None } }));
+            graphql_value!({ "inner": { "nullableField": None } })
+        );
 
         assert_eq!(
             errs,
-            vec![
-                ExecutionError::new(
-                    SourcePosition::new(26, 0, 26),
-                    &["inner", "nullableField", "nonNullableErrorField"],
-                    FieldError::new("Error for nonNullableErrorField", Value::null()),
-                ),
-            ]);
+            vec![ExecutionError::new(
+                SourcePosition::new(26, 0, 26),
+                &["inner", "nullableField", "nonNullableErrorField"],
+                FieldError::new("Error for nonNullableErrorField", Value::null()),
+            )]
+        );
     }
 
     #[test]
@@ -547,21 +823,18 @@ mod propagates_errors_to_nullable_fields {
 
         let (result, errs) = ::execute(doc, None, &schema, &vars, &()).expect("Execution failed");
 
-        println!("Result: {:?}", result);
+        println!("Result: {:#?}", result);
 
-        assert_eq!(
-            result,
-            graphql_value!(None));
+        assert_eq!(result, graphql_value!(None));
 
         assert_eq!(
             errs,
-            vec![
-                ExecutionError::new(
-                    SourcePosition::new(29, 0, 29),
-                    &["inner", "nonNullableField", "nonNullableErrorField"],
-                    FieldError::new("Error for nonNullableErrorField", Value::null()),
-                ),
-            ]);
+            vec![ExecutionError::new(
+                SourcePosition::new(29, 0, 29),
+                &["inner", "nonNullableField", "nonNullableErrorField"],
+                FieldError::new("Error for nonNullableErrorField", Value::null()),
+            )]
+        );
     }
 
     #[test]
@@ -573,21 +846,21 @@ mod propagates_errors_to_nullable_fields {
 
         let (result, errs) = ::execute(doc, None, &schema, &vars, &()).expect("Execution failed");
 
-        println!("Result: {:?}", result);
+        println!("Result: {:#?}", result);
 
         assert_eq!(
             result,
-            graphql_value!({ "inner": { "nonNullableField": { "nullableErrorField": None } } }));
+            graphql_value!({ "inner": { "nonNullableField": { "nullableErrorField": None } } })
+        );
 
         assert_eq!(
             errs,
-            vec![
-                ExecutionError::new(
-                    SourcePosition::new(29, 0, 29),
-                    &["inner", "nonNullableField", "nullableErrorField"],
-                    FieldError::new("Error for nullableErrorField", Value::null()),
-                ),
-            ]);
+            vec![ExecutionError::new(
+                SourcePosition::new(29, 0, 29),
+                &["inner", "nonNullableField", "nullableErrorField"],
+                FieldError::new("Error for nullableErrorField", Value::null()),
+            )]
+        );
     }
 
     #[test]
@@ -599,21 +872,18 @@ mod propagates_errors_to_nullable_fields {
 
         let (result, errs) = ::execute(doc, None, &schema, &vars, &()).expect("Execution failed");
 
-        println!("Result: {:?}", result);
+        println!("Result: {:#?}", result);
 
-        assert_eq!(
-            result,
-            graphql_value!(None));
+        assert_eq!(result, graphql_value!(None));
 
         assert_eq!(
             errs,
-            vec![
-                ExecutionError::new(
-                    SourcePosition::new(11, 0, 11),
-                    &["inners", "nonNullableErrorField"],
-                    FieldError::new("Error for nonNullableErrorField", Value::null()),
-                ),
-            ]);
+            vec![ExecutionError::new(
+                SourcePosition::new(11, 0, 11),
+                &["inners", "nonNullableErrorField"],
+                FieldError::new("Error for nonNullableErrorField", Value::null()),
+            )]
+        );
     }
 
     #[test]
@@ -625,11 +895,12 @@ mod propagates_errors_to_nullable_fields {
 
         let (result, errs) = ::execute(doc, None, &schema, &vars, &()).expect("Execution failed");
 
-        println!("Result: {:?}", result);
+        println!("Result: {:#?}", result);
 
         assert_eq!(
             result,
-            graphql_value!({ "nullableInners": [None, None, None, None, None] }));
+            graphql_value!({ "nullableInners": [None, None, None, None, None] })
+        );
 
         assert_eq!(
             errs,
@@ -659,14 +930,15 @@ mod propagates_errors_to_nullable_fields {
                     &["nullableInners", "nonNullableErrorField"],
                     FieldError::new("Error for nonNullableErrorField", Value::null()),
                 ),
-            ]);
+            ]
+        );
     }
 }
 
 mod named_operations {
-    use value::Value;
     use schema::model::RootNode;
     use types::scalars::EmptyMutation;
+    use value::Value;
     use GraphQLError;
 
     struct Schema;
@@ -688,9 +960,8 @@ mod named_operations {
 
         assert_eq!(
             result,
-            Value::object(vec![
-                ("a", Value::string("b")),
-            ].into_iter().collect()));
+            Value::object(vec![("a", Value::string("b"))].into_iter().collect())
+        );
     }
 
     #[test]
@@ -706,9 +977,8 @@ mod named_operations {
 
         assert_eq!(
             result,
-            Value::object(vec![
-                ("a", Value::string("b")),
-            ].into_iter().collect()));
+            Value::object(vec![("a", Value::string("b"))].into_iter().collect())
+        );
     }
 
     #[test]
@@ -725,9 +995,8 @@ mod named_operations {
 
         assert_eq!(
             result,
-            Value::object(vec![
-                ("second", Value::string("b")),
-            ].into_iter().collect()));
+            Value::object(vec![("second", Value::string("b"))].into_iter().collect())
+        );
     }
 
     #[test]

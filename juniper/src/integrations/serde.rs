@@ -1,35 +1,40 @@
-use ordermap::OrderMap;
-use serde::{de, ser};
+use indexmap::IndexMap;
 use serde::ser::SerializeMap;
+use serde::{de, ser};
 
 use std::fmt;
 
-use {GraphQLError, Value};
 use ast::InputValue;
 use executor::ExecutionError;
 use parser::{ParseError, SourcePosition, Spanning};
 use validation::RuleError;
+use {GraphQLError, Object, Value};
+
+#[derive(Serialize)]
+struct SerializeHelper {
+    message: &'static str,
+}
 
 impl ser::Serialize for ExecutionError {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: ser::Serializer,
     {
-        let mut map = try!(serializer.serialize_map(Some(4)));
+        let mut map = serializer.serialize_map(Some(4))?;
 
-        try!(map.serialize_key("message"));
-        try!(map.serialize_value(self.error().message()));
+        map.serialize_key("message")?;
+        map.serialize_value(self.error().message())?;
 
         let locations = vec![self.location()];
-        try!(map.serialize_key("locations"));
-        try!(map.serialize_value(&locations));
+        map.serialize_key("locations")?;
+        map.serialize_value(&locations)?;
 
-        try!(map.serialize_key("path"));
-        try!(map.serialize_value(self.path()));
+        map.serialize_key("path")?;
+        map.serialize_value(self.path())?;
 
-        if !self.error().data().is_null() {
-            try!(map.serialize_key("data"));
-            try!(map.serialize_value(self.error().data()));
+        if !self.error().extensions().is_null() {
+            map.serialize_key("extensions")?;
+            map.serialize_value(self.error().extensions())?;
         }
 
         map.end()
@@ -44,13 +49,16 @@ impl<'a> ser::Serialize for GraphQLError<'a> {
         match *self {
             GraphQLError::ParseError(ref err) => vec![err].serialize(serializer),
             GraphQLError::ValidationError(ref errs) => errs.serialize(serializer),
-            GraphQLError::NoOperationProvided => {
-                serializer.serialize_str("Must provide an operation")
-            }
-            GraphQLError::MultipleOperationsProvided => serializer.serialize_str(
-                "Must provide operation name if query contains multiple operations",
-            ),
-            GraphQLError::UnknownOperationName => serializer.serialize_str("Unknown operation"),
+            GraphQLError::NoOperationProvided => [SerializeHelper {
+                message: "Must provide an operation",
+            }].serialize(serializer),
+            GraphQLError::MultipleOperationsProvided => [SerializeHelper {
+                message: "Must provide operation name \
+                          if query contains multiple operations",
+            }].serialize(serializer),
+            GraphQLError::UnknownOperationName => [SerializeHelper {
+                message: "Unknown operation",
+            }].serialize(serializer),
         }
     }
 }
@@ -120,7 +128,7 @@ impl<'de> de::Deserialize<'de> for InputValue {
             {
                 let mut values = Vec::new();
 
-                while let Some(el) = try!(visitor.next_element()) {
+                while let Some(el) = visitor.next_element()? {
                     values.push(el);
                 }
 
@@ -131,9 +139,9 @@ impl<'de> de::Deserialize<'de> for InputValue {
             where
                 V: de::MapAccess<'de>,
             {
-                let mut values: OrderMap<String, InputValue> = OrderMap::new();
+                let mut values: IndexMap<String, InputValue> = IndexMap::new();
 
-                while let Some((key, value)) = try!(visitor.next_entry()) {
+                while let Some((key, value)) = visitor.next_entry()? {
                     values.insert(key, value);
                 }
 
@@ -152,7 +160,7 @@ impl ser::Serialize for InputValue {
     {
         match *self {
             InputValue::Null | InputValue::Variable(_) => serializer.serialize_unit(),
-            InputValue::Int(v) => serializer.serialize_i64(v as i64),
+            InputValue::Int(v) => serializer.serialize_i64(i64::from(v)),
             InputValue::Float(v) => serializer.serialize_f64(v),
             InputValue::String(ref v) | InputValue::Enum(ref v) => serializer.serialize_str(v),
             InputValue::Boolean(v) => serializer.serialize_bool(v),
@@ -162,7 +170,7 @@ impl ser::Serialize for InputValue {
                 .serialize(serializer),
             InputValue::Object(ref v) => v.iter()
                 .map(|&(ref k, ref v)| (k.item.clone(), v.item.clone()))
-                .collect::<OrderMap<_, _>>()
+                .collect::<IndexMap<_, _>>()
                 .serialize(serializer),
         }
     }
@@ -173,13 +181,13 @@ impl ser::Serialize for RuleError {
     where
         S: ser::Serializer,
     {
-        let mut map = try!(serializer.serialize_map(Some(2)));
+        let mut map = serializer.serialize_map(Some(2))?;
 
-        try!(map.serialize_key("message"));
-        try!(map.serialize_value(self.message()));
+        map.serialize_key("message")?;
+        map.serialize_value(self.message())?;
 
-        try!(map.serialize_key("locations"));
-        try!(map.serialize_value(self.locations()));
+        map.serialize_key("locations")?;
+        map.serialize_value(self.locations())?;
 
         map.end()
     }
@@ -190,15 +198,15 @@ impl ser::Serialize for SourcePosition {
     where
         S: ser::Serializer,
     {
-        let mut map = try!(serializer.serialize_map(Some(2)));
+        let mut map = serializer.serialize_map(Some(2))?;
 
         let line = self.line() + 1;
-        try!(map.serialize_key("line"));
-        try!(map.serialize_value(&line));
+        map.serialize_key("line")?;
+        map.serialize_value(&line)?;
 
         let column = self.column() + 1;
-        try!(map.serialize_key("column"));
-        try!(map.serialize_value(&column));
+        map.serialize_key("column")?;
+        map.serialize_value(&column)?;
 
         map.end()
     }
@@ -209,20 +217,36 @@ impl<'a> ser::Serialize for Spanning<ParseError<'a>> {
     where
         S: ser::Serializer,
     {
-        let mut map = try!(serializer.serialize_map(Some(2)));
+        let mut map = serializer.serialize_map(Some(2))?;
 
         let message = format!("{}", self.item);
-        try!(map.serialize_key("message"));
-        try!(map.serialize_value(&message));
+        map.serialize_key("message")?;
+        map.serialize_value(&message)?;
 
-        let mut location = OrderMap::new();
+        let mut location = IndexMap::new();
         location.insert("line".to_owned(), self.start.line() + 1);
         location.insert("column".to_owned(), self.start.column() + 1);
 
         let locations = vec![location];
 
-        try!(map.serialize_key("locations"));
-        try!(map.serialize_value(&locations));
+        map.serialize_key("locations")?;
+        map.serialize_value(&locations)?;
+
+        map.end()
+    }
+}
+
+impl ser::Serialize for Object {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: ser::Serializer,
+    {
+        let mut map = serializer.serialize_map(Some(self.field_count()))?;
+
+        for &(ref f, ref v) in self.iter() {
+            map.serialize_key(f)?;
+            map.serialize_value(v)?;
+        }
 
         map.end()
     }
@@ -235,12 +259,64 @@ impl ser::Serialize for Value {
     {
         match *self {
             Value::Null => serializer.serialize_unit(),
-            Value::Int(v) => serializer.serialize_i64(v as i64),
+            Value::Int(v) => serializer.serialize_i64(i64::from(v)),
             Value::Float(v) => serializer.serialize_f64(v),
             Value::String(ref v) => serializer.serialize_str(v),
             Value::Boolean(v) => serializer.serialize_bool(v),
             Value::List(ref v) => v.serialize(serializer),
             Value::Object(ref v) => v.serialize(serializer),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{ExecutionError, GraphQLError};
+    use ast::InputValue;
+    use serde_json::from_str;
+    use serde_json::to_string;
+    use {FieldError, Value};
+    use ::value::Object;
+
+    #[test]
+    fn int() {
+        assert_eq!(
+            from_str::<InputValue>("1235").unwrap(),
+            InputValue::int(1235)
+        );
+    }
+
+    #[test]
+    fn float() {
+        assert_eq!(
+            from_str::<InputValue>("2.0").unwrap(),
+            InputValue::float(2.0)
+        );
+        // large value without a decimal part is also float
+        assert_eq!(
+            from_str::<InputValue>("123567890123").unwrap(),
+            InputValue::float(123567890123.0)
+        );
+    }
+
+    #[test]
+    fn errors() {
+        assert_eq!(
+            to_string(&GraphQLError::UnknownOperationName).unwrap(),
+            r#"[{"message":"Unknown operation"}]"#
+        );
+    }
+
+    #[test]
+    fn error_extensions() {
+        let mut obj = Object::with_capacity(1);
+        obj.add_field("foo".to_string(), Value::String("bar".to_string()));
+        assert_eq!(
+            to_string(&ExecutionError::at_origin(FieldError::new(
+                "foo error",
+                Value::Object(obj),
+            ))).unwrap(),
+            r#"{"message":"foo error","locations":[{"line":1,"column":1}],"path":[],"extensions":{"foo":"bar"}}"#
+        );
     }
 }

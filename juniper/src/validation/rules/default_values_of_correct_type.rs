@@ -1,6 +1,6 @@
 use ast::VariableDefinition;
-use types::utilities::is_valid_literal_value;
 use parser::Spanning;
+use types::utilities::is_valid_literal_value;
 use validation::{ValidatorContext, Visitor};
 
 pub struct DefaultValuesOfCorrectType {}
@@ -43,16 +43,14 @@ impl<'a> Visitor<'a> for DefaultValuesOfCorrectType {
 fn type_error_message(arg_name: &str, type_name: &str) -> String {
     format!(
         "Invalid default value for argument \"{}\", expected type \"{}\"",
-        arg_name,
-        type_name
+        arg_name, type_name
     )
 }
 
 fn non_null_error_message(arg_name: &str, type_name: &str) -> String {
     format!(
         "Argument \"{}\" has type \"{}\" and is not nullable, so it't can't have a default value",
-        arg_name,
-        type_name
+        arg_name, type_name
     )
 }
 
@@ -164,12 +162,10 @@ mod tests {
             dog { name }
           }
         "#,
-            &[
-                RuleError::new(
-                    &type_error_message("a", "ComplexInput"),
-                    &[SourcePosition::new(57, 1, 56)],
-                ),
-            ],
+            &[RuleError::new(
+                &type_error_message("a", "ComplexInput"),
+                &[SourcePosition::new(57, 1, 56)],
+            )],
         );
     }
 
@@ -182,12 +178,10 @@ mod tests {
             dog { name }
           }
         "#,
-            &[
-                RuleError::new(
-                    &type_error_message("a", "[String]"),
-                    &[SourcePosition::new(44, 1, 43)],
-                ),
-            ],
+            &[RuleError::new(
+                &type_error_message("a", "[String]"),
+                &[SourcePosition::new(44, 1, 43)],
+            )],
         );
     }
 

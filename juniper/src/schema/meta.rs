@@ -1,4 +1,4 @@
-//! Types used to describe a GraphQL schema
+//! Types used to describe a `GraphQL` schema
 
 use std::borrow::Cow;
 use std::fmt;
@@ -174,12 +174,12 @@ impl<'a> MetaType<'a> {
     /// Lists, non-null wrappers, and placeholders don't have names.
     pub fn name(&self) -> Option<&str> {
         match *self {
-            MetaType::Scalar(ScalarMeta { ref name, .. }) |
-            MetaType::Object(ObjectMeta { ref name, .. }) |
-            MetaType::Enum(EnumMeta { ref name, .. }) |
-            MetaType::Interface(InterfaceMeta { ref name, .. }) |
-            MetaType::Union(UnionMeta { ref name, .. }) |
-            MetaType::InputObject(InputObjectMeta { ref name, .. }) => Some(name),
+            MetaType::Scalar(ScalarMeta { ref name, .. })
+            | MetaType::Object(ObjectMeta { ref name, .. })
+            | MetaType::Enum(EnumMeta { ref name, .. })
+            | MetaType::Interface(InterfaceMeta { ref name, .. })
+            | MetaType::Union(UnionMeta { ref name, .. })
+            | MetaType::InputObject(InputObjectMeta { ref name, .. }) => Some(name),
             _ => None,
         }
     }
@@ -191,20 +191,20 @@ impl<'a> MetaType<'a> {
         match *self {
             MetaType::Scalar(ScalarMeta {
                 ref description, ..
-            }) |
-            MetaType::Object(ObjectMeta {
+            })
+            | MetaType::Object(ObjectMeta {
                 ref description, ..
-            }) |
-            MetaType::Enum(EnumMeta {
+            })
+            | MetaType::Enum(EnumMeta {
                 ref description, ..
-            }) |
-            MetaType::Interface(InterfaceMeta {
+            })
+            | MetaType::Interface(InterfaceMeta {
                 ref description, ..
-            }) |
-            MetaType::Union(UnionMeta {
+            })
+            | MetaType::Union(UnionMeta {
                 ref description, ..
-            }) |
-            MetaType::InputObject(InputObjectMeta {
+            })
+            | MetaType::InputObject(InputObjectMeta {
                 ref description, ..
             }) => description.as_ref(),
             _ => None,
@@ -234,8 +234,8 @@ impl<'a> MetaType<'a> {
     /// Only objects and interfaces have fields. This method always returns `None` for other types.
     pub fn field_by_name(&self, name: &str) -> Option<&Field> {
         match *self {
-            MetaType::Object(ObjectMeta { ref fields, .. }) |
-            MetaType::Interface(InterfaceMeta { ref fields, .. }) => {
+            MetaType::Object(ObjectMeta { ref fields, .. })
+            | MetaType::Interface(InterfaceMeta { ref fields, .. }) => {
                 fields.iter().find(|f| f.name == name)
             }
             _ => None,
@@ -257,12 +257,12 @@ impl<'a> MetaType<'a> {
     /// Construct a `Type` literal instance based on the metadata
     pub fn as_type(&self) -> Type<'a> {
         match *self {
-            MetaType::Scalar(ScalarMeta { ref name, .. }) |
-            MetaType::Object(ObjectMeta { ref name, .. }) |
-            MetaType::Enum(EnumMeta { ref name, .. }) |
-            MetaType::Interface(InterfaceMeta { ref name, .. }) |
-            MetaType::Union(UnionMeta { ref name, .. }) |
-            MetaType::InputObject(InputObjectMeta { ref name, .. }) => {
+            MetaType::Scalar(ScalarMeta { ref name, .. })
+            | MetaType::Object(ObjectMeta { ref name, .. })
+            | MetaType::Enum(EnumMeta { ref name, .. })
+            | MetaType::Interface(InterfaceMeta { ref name, .. })
+            | MetaType::Union(UnionMeta { ref name, .. })
+            | MetaType::InputObject(InputObjectMeta { ref name, .. }) => {
                 Type::NonNullNamed(name.clone())
             }
             MetaType::List(ListMeta { ref of_type }) => {
@@ -287,11 +287,11 @@ impl<'a> MetaType<'a> {
         match *self {
             MetaType::Scalar(ScalarMeta {
                 ref try_parse_fn, ..
-            }) |
-            MetaType::Enum(EnumMeta {
+            })
+            | MetaType::Enum(EnumMeta {
                 ref try_parse_fn, ..
-            }) |
-            MetaType::InputObject(InputObjectMeta {
+            })
+            | MetaType::InputObject(InputObjectMeta {
                 ref try_parse_fn, ..
             }) => Some(try_parse_fn),
             _ => None,
@@ -345,7 +345,9 @@ impl<'a> ScalarMeta<'a> {
         ScalarMeta {
             name: name,
             description: None,
-            try_parse_fn: Box::new(|v: &InputValue| <T as FromInputValue>::from_input_value(v).is_some()),
+            try_parse_fn: Box::new(|v: &InputValue| {
+                <T as FromInputValue>::from_input_value(v).is_some()
+            }),
         }
     }
 
@@ -431,7 +433,9 @@ impl<'a> EnumMeta<'a> {
             name: name,
             description: None,
             values: values.to_vec(),
-            try_parse_fn: Box::new(|v: &InputValue| <T as FromInputValue>::from_input_value(v).is_some()),
+            try_parse_fn: Box::new(|v: &InputValue| {
+                <T as FromInputValue>::from_input_value(v).is_some()
+            }),
         }
     }
 
@@ -510,7 +514,9 @@ impl<'a> InputObjectMeta<'a> {
             name: name,
             description: None,
             input_fields: input_fields.to_vec(),
-            try_parse_fn: Box::new(|v: &InputValue| <T as FromInputValue>::from_input_value(v).is_some()),
+            try_parse_fn: Box::new(|v: &InputValue| {
+                <T as FromInputValue>::from_input_value(v).is_some()
+            }),
         }
     }
 

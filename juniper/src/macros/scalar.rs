@@ -36,7 +36,7 @@ In addition to implementing `GraphQLType` for the type in question,
 usable as arguments and default values.
 
 */
-#[macro_export]
+#[macro_export(local_inner_macros)]
 macro_rules! graphql_scalar {
     ( @as_expr, $e:expr) => { $e };
 
@@ -57,9 +57,9 @@ macro_rules! graphql_scalar {
     // and body for the from() method on FromInputValue.
     (
         @generate,
-        ( $name:ty, $outname:tt, $descr:tt ),
+        ( $name:ty, $outname:expr, $descr:tt ),
         (
-            ( $resolve_selfvar:ident, $resolve_body:block ),
+            ( $resolve_selfvar:ident, $resolve_retval:ty, $resolve_body:block ),
             ( $fiv_arg:ident, $fiv_result:ty, $fiv_body:block )
         )
     ) => {
@@ -71,7 +71,10 @@ macro_rules! graphql_scalar {
                 Some(graphql_scalar!( @as_expr, $outname ))
             }
 
-            fn meta<'r>(info: &(), registry: &mut $crate::Registry<'r>) -> $crate::meta::MetaType<'r> {
+            fn meta<'r>(
+                info: &(),
+                registry: &mut $crate::Registry<'r>
+            ) -> $crate::meta::MetaType<'r> {
                 graphql_scalar!(
                     @maybe_apply, $descr, description,
                     registry.build_scalar_type::<Self>(info))
@@ -82,7 +85,7 @@ macro_rules! graphql_scalar {
                 &$resolve_selfvar,
                 _: &(),
                 _: Option<&[$crate::Selection]>,
-                _: &$crate::Executor<Self::Context>) -> $crate::Value {
+                _: &$crate::Executor<Self::Context>) -> $resolve_retval {
                 $resolve_body
             }
         }
@@ -114,9 +117,9 @@ macro_rules! graphql_scalar {
         @parse,
         $meta:tt,
         ( $_ignored:tt, $fiv:tt ),
-        resolve(&$selfvar:ident) -> Value $body:block $($rest:tt)*
+        resolve(&$selfvar:ident) -> $retval:ty $body:block $($rest:tt)*
     ) => {
-        graphql_scalar!( @parse, $meta, ( ($selfvar, $body), $fiv ), $($rest)* );
+        graphql_scalar!( @parse, $meta, ( ($selfvar, $retval, $body), $fiv ), $($rest)* );
     };
 
     // from_input_value(arg: &InputValue) -> ... { ... }
@@ -132,7 +135,7 @@ macro_rules! graphql_scalar {
     // description: <description>
     (
         @parse,
-        ( $name:ty, $outname:tt, $_ignored:tt ),
+        ( $name:ty, $outname:expr, $_ignored:tt ),
         $acc:tt,
         description: $descr:tt $($rest:tt)*
     ) => {
@@ -148,6 +151,6 @@ macro_rules! graphql_scalar {
     // Entry point
     // RustName { ... }
     ( $name:ty { $( $items:tt )* }) => {
-        graphql_scalar!( @parse, ( $name, (stringify!($name)), None ), ( None, None ), $($items)* );
+        graphql_scalar!( @parse, ( $name, __graphql__stringify!($name), None ), ( None, None ), $($items)* );
     };
 }

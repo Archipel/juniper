@@ -1,13 +1,12 @@
-use ordermap::OrderMap;
-use ordermap::Entry;
+use indexmap::IndexMap;
 
 use ast::{Directive, FromInputValue, InputValue, Selection};
 use executor::Variables;
-use value::Value;
+use value::{Object, Value};
 
-use schema::meta::{Argument, MetaType};
 use executor::{ExecutionResult, Executor, Registry};
 use parser::Spanning;
+use schema::meta::{Argument, MetaType};
 
 /// GraphQL type kind
 ///
@@ -70,17 +69,17 @@ pub enum TypeKind {
 
 /// Field argument container
 pub struct Arguments<'a> {
-    args: Option<OrderMap<&'a str, InputValue>>,
+    args: Option<IndexMap<&'a str, InputValue>>,
 }
 
 impl<'a> Arguments<'a> {
     #[doc(hidden)]
     pub fn new(
-        mut args: Option<OrderMap<&'a str, InputValue>>,
+        mut args: Option<IndexMap<&'a str, InputValue>>,
         meta_args: &'a Option<Vec<Argument>>,
     ) -> Arguments<'a> {
         if meta_args.is_some() && args.is_none() {
-            args = Some(OrderMap::new());
+            args = Some(IndexMap::new());
         }
 
         if let (&mut Some(ref mut args), &Some(ref meta_args)) = (&mut args, meta_args) {
@@ -289,7 +288,7 @@ pub trait GraphQLType: Sized {
     ///
     /// The default implementation panics.
     #[allow(unused_variables)]
-    fn concrete_type_name(&self, context: &Self::Context) -> String {
+    fn concrete_type_name(&self, context: &Self::Context, info: &Self::TypeInfo) -> String {
         panic!("concrete_type_name must be implemented by unions and interfaces");
     }
 
@@ -310,9 +309,9 @@ pub trait GraphQLType: Sized {
         executor: &Executor<Self::Context>,
     ) -> Value {
         if let Some(selection_set) = selection_set {
-            let mut result = OrderMap::new();
+            let mut result = Object::with_capacity(selection_set.len());
             if resolve_selection_set_into(self, info, selection_set, executor, &mut result) {
-                Value::object(result)
+                Value::Object(result)
             } else {
                 Value::null()
             }
@@ -322,13 +321,14 @@ pub trait GraphQLType: Sized {
     }
 }
 
-fn resolve_selection_set_into<T, CtxT>(
+pub(crate) fn resolve_selection_set_into<T, CtxT>(
     instance: &T,
     info: &T::TypeInfo,
     selection_set: &[Selection],
     executor: &Executor<CtxT>,
-    result: &mut OrderMap<String, Value>,
-) -> bool where
+    result: &mut Object,
+) -> bool
+where
     T: GraphQLType<Context = CtxT>,
 {
     let meta_type = executor
@@ -351,12 +351,12 @@ fn resolve_selection_set_into<T, CtxT>(
                     continue;
                 }
 
-                let response_name = &f.alias.as_ref().unwrap_or(&f.name).item;
+                let response_name = f.alias.as_ref().unwrap_or(&f.name).item;
 
                 if f.name.item == "__typename" {
-                    result.insert(
-                        (*response_name).to_owned(),
-                        Value::string(instance.concrete_type_name(executor.context())),
+                    result.add_field(
+                        response_name,
+                        Value::string(instance.concrete_type_name(executor.context(), info)),
                     );
                     continue;
                 }
@@ -373,7 +373,7 @@ fn resolve_selection_set_into<T, CtxT>(
 
                 let sub_exec = executor.field_sub_executor(
                     response_name,
-                    &f.name.item,
+                    f.name.item,
                     start_pos.clone(),
                     f.selection_set.as_ref().map(|v| &v[..]),
                 );
@@ -405,7 +405,7 @@ fn resolve_selection_set_into<T, CtxT>(
                             return false;
                         }
 
-                        result.insert((*response_name).to_owned(), Value::null());
+                        result.add_field(response_name, Value::null());
                     }
                 }
             }
@@ -441,7 +441,8 @@ fn resolve_selection_set_into<T, CtxT>(
 
                 let sub_exec = executor.type_sub_executor(
                     fragment.type_condition.as_ref().map(|c| c.item),
-                    Some(&fragment.selection_set[..]));
+                    Some(&fragment.selection_set[..]),
+                );
 
                 if let Some(ref type_condition) = fragment.type_condition {
                     let sub_result = instance.resolve_into_type(
@@ -451,9 +452,9 @@ fn resolve_selection_set_into<T, CtxT>(
                         &sub_exec,
                     );
 
-                    if let Ok(Value::Object(mut hash_map)) = sub_result {
-                        for (k, v) in hash_map.drain(..) {
-                            result.insert(k, v);
+                    if let Ok(Value::Object(object)) = sub_result {
+                        for (k, v) in object {
+                            merge_key_into(result, &k, v);
                         }
                     } else if let Err(e) = sub_result {
                         sub_exec.push_error_at(e, start_pos.clone());
@@ -472,7 +473,7 @@ fn resolve_selection_set_into<T, CtxT>(
             }
         }
     }
-    
+
     true
 }
 
@@ -491,8 +492,8 @@ fn is_excluded(directives: &Option<Vec<Spanning<Directive>>>, vars: &Variables) 
                 .next()
                 .unwrap();
 
-            if (directive.name.item == "skip" && condition) ||
-                (directive.name.item == "include" && !condition)
+            if (directive.name.item == "skip" && condition)
+                || (directive.name.item == "include" && !condition)
             {
                 return true;
             }
@@ -501,26 +502,43 @@ fn is_excluded(directives: &Option<Vec<Spanning<Directive>>>, vars: &Variables) 
     false
 }
 
-fn merge_key_into(result: &mut OrderMap<String, Value>, response_name: &str, value: Value) {
-    match result.entry(response_name.to_owned()) {
-        Entry::Occupied(mut e) => match (e.get_mut().as_mut_object_value(), value) {
-            (Some(dest_obj), Value::Object(src_obj)) => {
-                merge_maps(dest_obj, src_obj);
+fn merge_key_into(result: &mut Object, response_name: &str, value: Value) {
+    if let Some(&mut (_, ref mut e)) = result.iter_mut().find(|&&mut (ref key, _)| key == response_name)
+    {
+        match *e {
+            Value::Object(ref mut dest_obj) => {
+                if let Value::Object(src_obj) = value {
+                    merge_maps(dest_obj, src_obj);
+                }
+            }
+            Value::List(ref mut dest_list) => {
+                if let Value::List(src_list) = value {
+                    dest_list
+                        .iter_mut()
+                        .zip(src_list.into_iter())
+                        .for_each(|(d, s)| match d {
+                            &mut Value::Object(ref mut d_obj) => {
+                                if let Value::Object(s_obj) = s {
+                                    merge_maps(d_obj, s_obj);
+                                }
+                            }
+                            _ => {}
+                        });
+                }
             }
             _ => {}
-        },
-        Entry::Vacant(e) => {
-            e.insert(value);
         }
+        return;
     }
+    result.add_field(response_name, value);
 }
 
-fn merge_maps(dest: &mut OrderMap<String, Value>, src: OrderMap<String, Value>) {
+fn merge_maps(dest: &mut Object, src: Object) {
     for (key, value) in src {
-        if dest.contains_key(&key) {
+        if dest.contains_field(&key) {
             merge_key_into(dest, &key, value);
         } else {
-            dest.insert(key, value);
+            dest.add_field(key, value);
         }
     }
 }

@@ -1,8 +1,12 @@
-use types::base::{Arguments, GraphQLType, TypeKind};
 use executor::{ExecutionResult, Executor, Registry};
+use types::base::{Arguments, GraphQLType, TypeKind};
+use value::Value;
+use ast::Selection;
 
-use schema::meta::{Argument, EnumMeta, EnumValue, Field, InputObjectMeta, InterfaceMeta, MetaType,
-                   ObjectMeta, UnionMeta};
+use schema::meta::{
+    Argument, EnumMeta, EnumValue, Field, InputObjectMeta, InterfaceMeta, MetaType, ObjectMeta,
+    UnionMeta,
+};
 use schema::model::{DirectiveLocation, DirectiveType, RootNode, SchemaType, TypeType};
 
 impl<'a, CtxT, QueryT, MutationT> GraphQLType for RootNode<'a, QueryT, MutationT>
@@ -39,6 +43,26 @@ where
                     .resolve(&(), &self.schema.type_by_name(&type_name))
             }
             _ => self.query_type.resolve_field(info, field, args, executor),
+        }
+    }
+
+    fn resolve(
+        &self,
+        info: &Self::TypeInfo,
+        selection_set: Option<&[Selection]>,
+        executor: &Executor<Self::Context>,
+    ) -> Value {
+        use value::Object;
+        use types::base::resolve_selection_set_into;
+        if let Some(selection_set) = selection_set {
+            let mut result = Object::with_capacity(selection_set.len());
+            if resolve_selection_set_into(self, info, selection_set, executor, &mut result) {
+                Value::Object(result)
+            } else {
+                Value::null()
+            }
+        } else {
+            panic!("resolve() must be implemented by non-object output types");
         }
     }
 }
@@ -142,11 +166,15 @@ graphql_object!(<'a> TypeType<'a>: SchemaType<'a> as "__Type" |&self| {
                     .filter_map(|tn| schema.type_by_name(tn))
                     .collect())
             }
-            TypeType::Concrete(&MetaType::Interface(InterfaceMeta { name: ref iface_name, .. })) => {
+            TypeType::Concrete(&MetaType::Interface(InterfaceMeta{name: ref iface_name, .. })) => {
                 Some(schema.concrete_type_list()
                     .iter()
                     .filter_map(|&ct|
-                        if let MetaType::Object(ObjectMeta { ref name, ref interface_names, .. }) = *ct {
+                        if let MetaType::Object(ObjectMeta{
+                            ref name,
+                            ref interface_names,
+                            ..
+                        }) = *ct {
                             if interface_names.contains(&iface_name.to_string()) {
                                 schema.type_by_name(name)
                             } else { None }
@@ -232,7 +260,6 @@ graphql_object!(EnumValue: () as "__EnumValue" |&self| {
     }
 });
 
-
 graphql_object!(<'a> DirectiveType<'a>: SchemaType<'a> as "__Directive" |&self| {
     field name() -> &String {
         &self.name
@@ -270,4 +297,3 @@ graphql_object!(<'a> DirectiveType<'a>: SchemaType<'a> as "__Directive" |&self| 
         self.locations.contains(&DirectiveLocation::Field)
     }
 });
-

@@ -1,10 +1,10 @@
-use parser::parse_document_source;
 use ast::{FromInputValue, InputValue};
-use types::base::GraphQLType;
 use executor::Registry;
-use types::scalars::{EmptyMutation, ID};
-use schema::model::{DirectiveLocation, DirectiveType, RootNode};
+use parser::parse_document_source;
 use schema::meta::{EnumValue, MetaType};
+use schema::model::{DirectiveLocation, DirectiveType, RootNode};
+use types::base::GraphQLType;
+use types::scalars::{EmptyMutation, ID};
 use validation::{visit, MultiVisitor, MultiVisitorNil, RuleError, ValidatorContext, Visitor};
 
 struct Being;
@@ -60,11 +60,9 @@ impl GraphQLType for Being {
     }
 
     fn meta<'r>(i: &(), registry: &mut Registry<'r>) -> MetaType<'r> {
-        let fields = &[
-            registry
-                .field::<Option<String>>("name", i)
-                .argument(registry.arg::<Option<bool>>("surname", i)),
-        ];
+        let fields = &[registry
+            .field::<Option<String>>("name", i)
+            .argument(registry.arg::<Option<bool>>("surname", i))];
 
         registry.build_interface_type::<Self>(i, fields).into_meta()
     }
@@ -79,11 +77,9 @@ impl GraphQLType for Pet {
     }
 
     fn meta<'r>(i: &(), registry: &mut Registry<'r>) -> MetaType<'r> {
-        let fields = &[
-            registry
-                .field::<Option<String>>("name", i)
-                .argument(registry.arg::<Option<bool>>("surname", i)),
-        ];
+        let fields = &[registry
+            .field::<Option<String>>("name", i)
+            .argument(registry.arg::<Option<bool>>("surname", i))];
 
         registry.build_interface_type::<Self>(i, fields).into_meta()
     }
@@ -98,11 +94,9 @@ impl GraphQLType for Canine {
     }
 
     fn meta<'r>(i: &(), registry: &mut Registry<'r>) -> MetaType<'r> {
-        let fields = &[
-            registry
-                .field::<Option<String>>("name", i)
-                .argument(registry.arg::<Option<bool>>("surname", i)),
-        ];
+        let fields = &[registry
+            .field::<Option<String>>("name", i)
+            .argument(registry.arg::<Option<bool>>("surname", i))];
 
         registry.build_interface_type::<Self>(i, fields).into_meta()
     }
@@ -236,10 +230,7 @@ impl GraphQLType for Cat {
 
         registry
             .build_object_type::<Self>(i, fields)
-            .interfaces(&[
-                registry.get_type::<Being>(i),
-                registry.get_type::<Pet>(i),
-            ])
+            .interfaces(&[registry.get_type::<Being>(i), registry.get_type::<Pet>(i)])
             .into_meta()
     }
 }
@@ -434,9 +425,7 @@ impl GraphQLType for ComplicatedArgs {
                 .argument(registry.arg::<Option<ID>>("idArg", i)),
             registry
                 .field::<Option<String>>("stringListArgField", i)
-                .argument(
-                    registry.arg::<Option<Vec<Option<String>>>>("stringListArg", i),
-                ),
+                .argument(registry.arg::<Option<Vec<Option<String>>>>("stringListArg", i)),
             registry
                 .field::<Option<String>>("complexArgField", i)
                 .argument(registry.arg::<Option<ComplexInput>>("complexArg", i)),

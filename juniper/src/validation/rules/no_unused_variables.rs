@@ -1,7 +1,7 @@
-use std::collections::{HashMap, HashSet};
 use ast::{Document, Fragment, FragmentSpread, InputValue, Operation, VariableDefinition};
-use validation::{RuleError, ValidatorContext, Visitor};
 use parser::Spanning;
+use std::collections::{HashMap, HashSet};
+use validation::{RuleError, ValidatorContext, Visitor};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Scope<'a> {
@@ -140,8 +140,7 @@ fn error_message(var_name: &str, op_name: Option<&str>) -> String {
     if let Some(op_name) = op_name {
         format!(
             r#"Variable "${}" is not defined by operation "{}""#,
-            var_name,
-            op_name
+            var_name, op_name
         )
     } else {
         format!(r#"Variable "${}" is not defined"#, var_name)
@@ -275,9 +274,10 @@ mod tests {
             field(a: $a, b: $b)
           }
         "#,
-            &[
-                RuleError::new(&error_message("c", None), &[SourcePosition::new(42, 1, 41)]),
-            ],
+            &[RuleError::new(
+                &error_message("c", None),
+                &[SourcePosition::new(42, 1, 41)],
+            )],
         );
     }
 
@@ -325,12 +325,10 @@ mod tests {
             field
           }
         "#,
-            &[
-                RuleError::new(
-                    &error_message("c", Some("Foo")),
-                    &[SourcePosition::new(45, 1, 44)],
-                ),
-            ],
+            &[RuleError::new(
+                &error_message("c", Some("Foo")),
+                &[SourcePosition::new(45, 1, 44)],
+            )],
         );
     }
 
@@ -384,12 +382,10 @@ mod tests {
             field(b: $b)
           }
         "#,
-            &[
-                RuleError::new(
-                    &error_message("b", Some("Foo")),
-                    &[SourcePosition::new(21, 1, 20)],
-                ),
-            ],
+            &[RuleError::new(
+                &error_message("b", Some("Foo")),
+                &[SourcePosition::new(21, 1, 20)],
+            )],
         );
     }
 

@@ -13,15 +13,15 @@
 ---
 
 [GraphQL][graphql] is a data query language developed by Facebook intended to
-serve mobile and web application frontends. 
+serve mobile and web application frontends.
 
-*Juniper* makes it possible to write GraphQL servers in Rust that are 
-type-safe and blazingly fast. We also try to make declaring and resolving 
+*Juniper* makes it possible to write GraphQL servers in Rust that are
+type-safe and blazingly fast. We also try to make declaring and resolving
 GraphQL schemas as convenient as possible as Rust will allow.
 
 Juniper does not include a web server - instead it provides building blocks to
 make integration with existing servers straightforward. It optionally provides a
-pre-built integration for the [Iron][iron] and [Rocket] frameworks, including
+pre-built integration for the [Hyper][hyper], [Iron][iron], [Rocket], and [Warp][warp] frameworks, including
 embedded [Graphiql][graphiql] for easy debugging.
 
 * [Cargo crate](https://crates.io/crates/juniper)
@@ -31,26 +31,26 @@ embedded [Graphiql][graphiql] for easy debugging.
 
 ## Getting Started
 
-The best place to get started is the [Juniper Book][book], which contains 
+The best place to get started is the [Juniper Book][book], which contains
 guides with plenty of examples, covering all features of Juniper. (very much WIP)
 
-To get started quickly and get a feel for Juniper, check out the 
+To get started quickly and get a feel for Juniper, check out the
 [Quickstart][book_quickstart] section.
 
-For specific information about macros, types and the Juniper api, the 
+For specific information about macros, types and the Juniper api, the
 [API Reference][docsrs] is the best place to look.
 
 You can also check out [src/tests/schema.rs][test_schema_rs] to see a complex
-schema including polymorphism with traits and interfaces.  
-For an example of web framework integration, 
-see the [rocket][rocket_examples] and [iron][iron_examples] examples folders.
+schema including polymorphism with traits and interfaces.
+For an example of web framework integration,
+see the [hyper][hyper_examples], [rocket][rocket_examples], [iron][iron_examples], and [warp][warp_examples] examples folders.
 
 
 ## Features
 
 Juniper supports the full GraphQL query language according to the
-[specification][graphql_spec], including interfaces, unions, schema 
-introspection, and validations.  
+[specification][graphql_spec], including interfaces, unions, schema
+introspection, and validations.
 It does not, however, support the schema language.
 
 As an exception to other GraphQL libraries for other languages, Juniper builds
@@ -72,8 +72,14 @@ your Schemas automatically.
 
 ### Web Frameworks
 
+* [hyper][hyper]
 * [rocket][rocket]
 * [iron][iron]
+* [warp][warp]
+
+## Guides & Examples
+
+* [Juniper + actix-web example](https://github.com/actix/examples/tree/master/juniper)
 
 
 ## API Stability
@@ -86,14 +92,17 @@ Juniper has not reached 1.0 yet, thus some API instability should be expected.
 [graphql_spec]: http://facebook.github.io/graphql
 [test_schema_rs]: https://github.com/graphql-rust/juniper/blob/master/juniper/src/tests/schema.rs
 [tokio]: https://github.com/tokio-rs/tokio
+[hyper_examples]: https://github.com/graphql-rust/juniper/tree/master/juniper_hyper/examples
 [rocket_examples]: https://github.com/graphql-rust/juniper/tree/master/juniper_rocket/examples
 [iron_examples]: https://github.com/graphql-rust/juniper/tree/master/juniper_iron/examples
+[Hyper]: https://hyper.rs
 [Rocket]: https://rocket.rs
 [book]: https://graphql-rust.github.io
 [book_quickstart]: https://graphql-rust.github.io/quickstart.html
 [docsrs]: https://docs.rs/juniper
+[warp]: https://github.com/seanmonstar/warp
+[warp_examples]: https://github.com/graphql-rust/juniper/tree/master/juniper_warp/examples
 
 [uuid]: https://crates.io/crates/uuid
 [url]: https://crates.io/crates/url
 [chrono]: https://crates.io/crates/chrono
-

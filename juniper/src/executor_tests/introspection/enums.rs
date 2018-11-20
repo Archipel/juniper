@@ -1,9 +1,7 @@
-use ordermap::OrderMap;
-
 use executor::Variables;
-use value::Value;
 use schema::model::RootNode;
 use types::scalars::EmptyMutation;
+use value::{Value, Object};
 
 /*
 
@@ -76,7 +74,7 @@ graphql_object!(Root: () |&self| {
 
 fn run_type_info_query<F>(doc: &str, f: F)
 where
-    F: Fn((&OrderMap<String, Value>, &Vec<Value>)) -> (),
+    F: Fn((&Object, &Vec<Value>)) -> (),
 {
     let schema = RootNode::new(Root {}, EmptyMutation::<()>::new());
 
@@ -85,18 +83,18 @@ where
 
     assert_eq!(errs, []);
 
-    println!("Result: {:?}", result);
+    println!("Result: {:#?}", result);
 
     let type_info = result
         .as_object_value()
         .expect("Result is not an object")
-        .get("__type")
+        .get_field_value("__type")
         .expect("__type field missing")
         .as_object_value()
         .expect("__type field not an object value");
 
     let values = type_info
-        .get("enumValues")
+        .get_field_value("enumValues")
         .expect("enumValues field missing")
         .as_list_value()
         .expect("enumValues not a list");
@@ -122,24 +120,34 @@ fn default_name_introspection() {
     "#;
 
     run_type_info_query(doc, |(type_info, values)| {
-        assert_eq!(type_info.get("name"), Some(&Value::string("DefaultName")));
-        assert_eq!(type_info.get("description"), Some(&Value::null()));
+        assert_eq!(type_info.get_field_value("name"), Some(&Value::string("DefaultName")));
+        assert_eq!(type_info.get_field_value("description"), Some(&Value::null()));
 
         assert_eq!(values.len(), 2);
 
-        assert!(values.contains(&Value::object(vec![
-            ("name", Value::string("FOO")),
-            ("description", Value::null()),
-            ("isDeprecated", Value::boolean(false)),
-            ("deprecationReason", Value::null()),
-        ].into_iter().collect())));
+        assert!(
+            values.contains(&Value::object(
+                vec![
+                    ("name", Value::string("FOO")),
+                    ("description", Value::null()),
+                    ("isDeprecated", Value::boolean(false)),
+                    ("deprecationReason", Value::null()),
+                ].into_iter()
+                    .collect(),
+            ))
+        );
 
-        assert!(values.contains(&Value::object(vec![
-            ("name", Value::string("BAR")),
-            ("description", Value::null()),
-            ("isDeprecated", Value::boolean(false)),
-            ("deprecationReason", Value::null()),
-        ].into_iter().collect())));
+        assert!(
+            values.contains(&Value::object(
+                vec![
+                    ("name", Value::string("BAR")),
+                    ("description", Value::null()),
+                    ("isDeprecated", Value::boolean(false)),
+                    ("deprecationReason", Value::null()),
+                ].into_iter()
+                    .collect(),
+            ))
+        );
     });
 }
 
@@ -161,24 +169,34 @@ fn named_introspection() {
     "#;
 
     run_type_info_query(doc, |(type_info, values)| {
-        assert_eq!(type_info.get("name"), Some(&Value::string("ANamedEnum")));
-        assert_eq!(type_info.get("description"), Some(&Value::null()));
+        assert_eq!(type_info.get_field_value("name"), Some(&Value::string("ANamedEnum")));
+        assert_eq!(type_info.get_field_value("description"), Some(&Value::null()));
 
         assert_eq!(values.len(), 2);
 
-        assert!(values.contains(&Value::object(vec![
-            ("name", Value::string("FOO")),
-            ("description", Value::null()),
-            ("isDeprecated", Value::boolean(false)),
-            ("deprecationReason", Value::null()),
-        ].into_iter().collect())));
+        assert!(
+            values.contains(&Value::object(
+                vec![
+                    ("name", Value::string("FOO")),
+                    ("description", Value::null()),
+                    ("isDeprecated", Value::boolean(false)),
+                    ("deprecationReason", Value::null()),
+                ].into_iter()
+                    .collect(),
+            ))
+        );
 
-        assert!(values.contains(&Value::object(vec![
-            ("name", Value::string("BAR")),
-            ("description", Value::null()),
-            ("isDeprecated", Value::boolean(false)),
-            ("deprecationReason", Value::null()),
-        ].into_iter().collect())));
+        assert!(
+            values.contains(&Value::object(
+                vec![
+                    ("name", Value::string("BAR")),
+                    ("description", Value::null()),
+                    ("isDeprecated", Value::boolean(false)),
+                    ("deprecationReason", Value::null()),
+                ].into_iter()
+                    .collect(),
+            ))
+        );
     });
 }
 
@@ -200,24 +218,37 @@ fn no_trailing_comma_introspection() {
     "#;
 
     run_type_info_query(doc, |(type_info, values)| {
-        assert_eq!(type_info.get("name"), Some(&Value::string("NoTrailingComma")));
-        assert_eq!(type_info.get("description"), Some(&Value::null()));
+        assert_eq!(
+            type_info.get_field_value("name"),
+            Some(&Value::string("NoTrailingComma"))
+        );
+        assert_eq!(type_info.get_field_value("description"), Some(&Value::null()));
 
         assert_eq!(values.len(), 2);
 
-        assert!(values.contains(&Value::object(vec![
-            ("name", Value::string("FOO")),
-            ("description", Value::null()),
-            ("isDeprecated", Value::boolean(false)),
-            ("deprecationReason", Value::null()),
-        ].into_iter().collect())));
+        assert!(
+            values.contains(&Value::object(
+                vec![
+                    ("name", Value::string("FOO")),
+                    ("description", Value::null()),
+                    ("isDeprecated", Value::boolean(false)),
+                    ("deprecationReason", Value::null()),
+                ].into_iter()
+                    .collect(),
+            ))
+        );
 
-        assert!(values.contains(&Value::object(vec![
-            ("name", Value::string("BAR")),
-            ("description", Value::null()),
-            ("isDeprecated", Value::boolean(false)),
-            ("deprecationReason", Value::null()),
-        ].into_iter().collect())));
+        assert!(
+            values.contains(&Value::object(
+                vec![
+                    ("name", Value::string("BAR")),
+                    ("description", Value::null()),
+                    ("isDeprecated", Value::boolean(false)),
+                    ("deprecationReason", Value::null()),
+                ].into_iter()
+                    .collect(),
+            ))
+        );
     });
 }
 
@@ -239,24 +270,40 @@ fn enum_description_introspection() {
     "#;
 
     run_type_info_query(doc, |(type_info, values)| {
-        assert_eq!(type_info.get("name"), Some(&Value::string("EnumDescription")));
-        assert_eq!(type_info.get("description"), Some(&Value::string("A description of the enum itself")));
+        assert_eq!(
+            type_info.get_field_value("name"),
+            Some(&Value::string("EnumDescription"))
+        );
+        assert_eq!(
+            type_info.get_field_value("description"),
+            Some(&Value::string("A description of the enum itself"))
+        );
 
         assert_eq!(values.len(), 2);
 
-        assert!(values.contains(&Value::object(vec![
-            ("name", Value::string("FOO")),
-            ("description", Value::null()),
-            ("isDeprecated", Value::boolean(false)),
-            ("deprecationReason", Value::null()),
-        ].into_iter().collect())));
+        assert!(
+            values.contains(&Value::object(
+                vec![
+                    ("name", Value::string("FOO")),
+                    ("description", Value::null()),
+                    ("isDeprecated", Value::boolean(false)),
+                    ("deprecationReason", Value::null()),
+                ].into_iter()
+                    .collect(),
+            ))
+        );
 
-        assert!(values.contains(&Value::object(vec![
-            ("name", Value::string("BAR")),
-            ("description", Value::null()),
-            ("isDeprecated", Value::boolean(false)),
-            ("deprecationReason", Value::null()),
-        ].into_iter().collect())));
+        assert!(
+            values.contains(&Value::object(
+                vec![
+                    ("name", Value::string("BAR")),
+                    ("description", Value::null()),
+                    ("isDeprecated", Value::boolean(false)),
+                    ("deprecationReason", Value::null()),
+                ].into_iter()
+                    .collect(),
+            ))
+        );
     });
 }
 
@@ -278,24 +325,37 @@ fn enum_value_description_introspection() {
     "#;
 
     run_type_info_query(doc, |(type_info, values)| {
-        assert_eq!(type_info.get("name"), Some(&Value::string("EnumValueDescription")));
-        assert_eq!(type_info.get("description"), Some(&Value::null()));
+        assert_eq!(
+            type_info.get_field_value("name"),
+            Some(&Value::string("EnumValueDescription"))
+        );
+        assert_eq!(type_info.get_field_value("description"), Some(&Value::null()));
 
         assert_eq!(values.len(), 2);
 
-        assert!(values.contains(&Value::object(vec![
-            ("name", Value::string("FOO")),
-            ("description", Value::string("The FOO value")),
-            ("isDeprecated", Value::boolean(false)),
-            ("deprecationReason", Value::null()),
-        ].into_iter().collect())));
+        assert!(
+            values.contains(&Value::object(
+                vec![
+                    ("name", Value::string("FOO")),
+                    ("description", Value::string("The FOO value")),
+                    ("isDeprecated", Value::boolean(false)),
+                    ("deprecationReason", Value::null()),
+                ].into_iter()
+                    .collect(),
+            ))
+        );
 
-        assert!(values.contains(&Value::object(vec![
-            ("name", Value::string("BAR")),
-            ("description", Value::string("The BAR value")),
-            ("isDeprecated", Value::boolean(false)),
-            ("deprecationReason", Value::null()),
-        ].into_iter().collect())));
+        assert!(
+            values.contains(&Value::object(
+                vec![
+                    ("name", Value::string("BAR")),
+                    ("description", Value::string("The BAR value")),
+                    ("isDeprecated", Value::boolean(false)),
+                    ("deprecationReason", Value::null()),
+                ].into_iter()
+                    .collect(),
+            ))
+        );
     });
 }
 
@@ -317,24 +377,43 @@ fn enum_deprecation_introspection() {
     "#;
 
     run_type_info_query(doc, |(type_info, values)| {
-        assert_eq!(type_info.get("name"), Some(&Value::string("EnumDeprecation")));
-        assert_eq!(type_info.get("description"), Some(&Value::null()));
+        assert_eq!(
+            type_info.get_field_value("name"),
+            Some(&Value::string("EnumDeprecation"))
+        );
+        assert_eq!(type_info.get_field_value("description"), Some(&Value::null()));
 
         assert_eq!(values.len(), 2);
 
-        assert!(values.contains(&Value::object(vec![
-            ("name", Value::string("FOO")),
-            ("description", Value::null()),
-            ("isDeprecated", Value::boolean(true)),
-            ("deprecationReason", Value::string("Please don't use FOO any more")),
-        ].into_iter().collect())));
+        assert!(
+            values.contains(&Value::object(
+                vec![
+                    ("name", Value::string("FOO")),
+                    ("description", Value::null()),
+                    ("isDeprecated", Value::boolean(true)),
+                    (
+                        "deprecationReason",
+                        Value::string("Please don't use FOO any more"),
+                    ),
+                ].into_iter()
+                    .collect(),
+            ))
+        );
 
-        assert!(values.contains(&Value::object(vec![
-            ("name", Value::string("BAR")),
-            ("description", Value::string("The BAR value")),
-            ("isDeprecated", Value::boolean(true)),
-            ("deprecationReason", Value::string("Please don't use BAR any more")),
-        ].into_iter().collect())));
+        assert!(
+            values.contains(&Value::object(
+                vec![
+                    ("name", Value::string("BAR")),
+                    ("description", Value::string("The BAR value")),
+                    ("isDeprecated", Value::boolean(true)),
+                    (
+                        "deprecationReason",
+                        Value::string("Please don't use BAR any more"),
+                    ),
+                ].into_iter()
+                    .collect(),
+            ))
+        );
     });
 }
 
@@ -356,8 +435,11 @@ fn enum_deprecation_no_values_introspection() {
     "#;
 
     run_type_info_query(doc, |(type_info, values)| {
-        assert_eq!(type_info.get("name"), Some(&Value::string("EnumDeprecation")));
-        assert_eq!(type_info.get("description"), Some(&Value::null()));
+        assert_eq!(
+            type_info.get_field_value("name"),
+            Some(&Value::string("EnumDeprecation"))
+        );
+        assert_eq!(type_info.get_field_value("description"), Some(&Value::null()));
 
         assert_eq!(values.len(), 0);
     });

@@ -1,21 +1,21 @@
 extern crate iron;
-extern crate mount;
-extern crate logger;
-extern crate serde;
 extern crate juniper;
 extern crate juniper_iron;
+extern crate logger;
+extern crate mount;
+extern crate serde;
 
 use std::env;
 
-use mount::Mount;
-use logger::Logger;
 use iron::prelude::*;
+use juniper::tests::model::Database;
 use juniper::EmptyMutation;
 use juniper_iron::{GraphQLHandler, GraphiQLHandler};
-use juniper::tests::model::Database;
+use logger::Logger;
+use mount::Mount;
 
-fn context_factory(_: &mut Request) -> Database {
-    Database::new()
+fn context_factory(_: &mut Request) -> IronResult<Database> {
+    Ok(Database::new())
 }
 
 fn main() {
@@ -37,7 +37,7 @@ fn main() {
     chain.link_before(logger_before);
     chain.link_after(logger_after);
 
-    let host = env::var("LISTEN").unwrap_or("0.0.0.0:8080".to_owned());
+    let host = env::var("LISTEN").unwrap_or_else(|_| "0.0.0.0:8080".to_owned());
     println!("GraphQL server started on {}", host);
     Iron::new(chain).http(host.as_str()).unwrap();
 }

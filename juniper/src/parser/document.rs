@@ -1,17 +1,20 @@
 use std::borrow::Cow;
 
-use ast::{Arguments, Definition, Directive, Document, Field, Fragment, FragmentSpread,
-          InlineFragment, InputValue, Operation, OperationType, Selection, Type,
-          VariableDefinition, VariableDefinitions};
+use ast::{
+    Arguments, Definition, Directive, Document, Field, Fragment, FragmentSpread, InlineFragment,
+    InputValue, Operation, OperationType, Selection, Type, VariableDefinition, VariableDefinitions,
+};
 
-use parser::{Lexer, OptionParseResult, ParseError, ParseResult, Parser, Spanning, Token,
-             UnlocatedParseResult};
 use parser::value::parse_value_literal;
+use parser::{
+    Lexer, OptionParseResult, ParseError, ParseResult, Parser, Spanning, Token,
+    UnlocatedParseResult,
+};
 
 #[doc(hidden)]
 pub fn parse_document_source(s: &str) -> UnlocatedParseResult<Document> {
     let mut lexer = Lexer::new(s);
-    let mut parser = try!(Parser::new(&mut lexer).map_err(|s| s.map(ParseError::LexerError)));
+    let mut parser = Parser::new(&mut lexer).map_err(|s| s.map(ParseError::LexerError))?;
     parse_document(&mut parser)
 }
 
@@ -19,7 +22,7 @@ fn parse_document<'a>(parser: &mut Parser<'a>) -> UnlocatedParseResult<'a, Docum
     let mut defs = Vec::new();
 
     loop {
-        defs.push(try!(parse_definition(parser)));
+        defs.push(parse_definition(parser)?);
 
         if parser.peek().item == Token::EndOfFile {
             return Ok(defs);
@@ -29,19 +32,17 @@ fn parse_document<'a>(parser: &mut Parser<'a>) -> UnlocatedParseResult<'a, Docum
 
 fn parse_definition<'a>(parser: &mut Parser<'a>) -> UnlocatedParseResult<'a, Definition<'a>> {
     match parser.peek().item {
-        Token::CurlyOpen | Token::Name("query") | Token::Name("mutation") => Ok(
-            Definition::Operation(try!(parse_operation_definition(parser))),
-        ),
-        Token::Name("fragment") => Ok(Definition::Fragment(
-            try!(parse_fragment_definition(parser)),
-        )),
+        Token::CurlyOpen | Token::Name("query") | Token::Name("mutation") => {
+            Ok(Definition::Operation(parse_operation_definition(parser)?))
+        }
+        Token::Name("fragment") => Ok(Definition::Fragment(parse_fragment_definition(parser)?)),
         _ => Err(parser.next()?.map(ParseError::UnexpectedToken)),
     }
 }
 
 fn parse_operation_definition<'a>(parser: &mut Parser<'a>) -> ParseResult<'a, Operation<'a>> {
     if parser.peek().item == Token::CurlyOpen {
-        let selection_set = try!(parse_selection_set(parser));
+        let selection_set = parse_selection_set(parser)?;
 
         Ok(Spanning::start_end(
             &selection_set.start,
@@ -56,14 +57,14 @@ fn parse_operation_definition<'a>(parser: &mut Parser<'a>) -> ParseResult<'a, Op
         ))
     } else {
         let start_pos = parser.peek().start.clone();
-        let operation_type = try!(parse_operation_type(parser));
+        let operation_type = parse_operation_type(parser)?;
         let name = match parser.peek().item {
-            Token::Name(_) => Some(try!(parser.expect_name())),
+            Token::Name(_) => Some(parser.expect_name()?),
             _ => None,
         };
-        let variable_definitions = try!(parse_variable_definitions(parser));
-        let directives = try!(parse_directives(parser));
-        let selection_set = try!(parse_selection_set(parser));
+        let variable_definitions = parse_variable_definitions(parser)?;
+        let directives = parse_directives(parser)?;
+        let selection_set = parse_selection_set(parser)?;
 
         Ok(Spanning::start_end(
             &start_pos,
@@ -82,7 +83,7 @@ fn parse_operation_definition<'a>(parser: &mut Parser<'a>) -> ParseResult<'a, Op
 fn parse_fragment_definition<'a>(parser: &mut Parser<'a>) -> ParseResult<'a, Fragment<'a>> {
     let Spanning {
         start: start_pos, ..
-    } = try!(parser.expect(&Token::Name("fragment")));
+    } = parser.expect(&Token::Name("fragment"))?;
     let name = match parser.expect_name() {
         Ok(n) => if n.item == "on" {
             return Err(n.map(|_| ParseError::UnexpectedToken(Token::Name("on"))));
@@ -92,10 +93,10 @@ fn parse_fragment_definition<'a>(parser: &mut Parser<'a>) -> ParseResult<'a, Fra
         Err(e) => return Err(e),
     };
 
-    try!(parser.expect(&Token::Name("on")));
-    let type_cond = try!(parser.expect_name());
-    let directives = try!(parse_directives(parser));
-    let selection_set = try!(parse_selection_set(parser));
+    parser.expect(&Token::Name("on"))?;
+    let type_cond = parser.expect_name()?;
+    let directives = parse_directives(parser)?;
+    let selection_set = parse_selection_set(parser)?;
 
     Ok(Spanning::start_end(
         &start_pos,
@@ -113,7 +114,7 @@ fn parse_optional_selection_set<'a>(
     parser: &mut Parser<'a>,
 ) -> OptionParseResult<'a, Vec<Selection<'a>>> {
     if parser.peek().item == Token::CurlyOpen {
-        Ok(Some(try!(parse_selection_set(parser))))
+        Ok(Some(parse_selection_set(parser)?))
     } else {
         Ok(None)
     }
@@ -134,14 +135,14 @@ fn parse_fragment<'a>(parser: &mut Parser<'a>) -> UnlocatedParseResult<'a, Selec
     let Spanning {
         start: ref start_pos,
         ..
-    } = try!(parser.expect(&Token::Ellipsis));
+    } = parser.expect(&Token::Ellipsis)?;
 
     match parser.peek().item {
         Token::Name("on") => {
             parser.next()?;
-            let name = try!(parser.expect_name());
-            let directives = try!(parse_directives(parser));
-            let selection_set = try!(parse_selection_set(parser));
+            let name = parser.expect_name()?;
+            let directives = parse_directives(parser)?;
+            let selection_set = parse_selection_set(parser)?;
 
             Ok(Selection::InlineFragment(Spanning::start_end(
                 &start_pos.clone(),
@@ -154,7 +155,7 @@ fn parse_fragment<'a>(parser: &mut Parser<'a>) -> UnlocatedParseResult<'a, Selec
             )))
         }
         Token::CurlyOpen => {
-            let selection_set = try!(parse_selection_set(parser));
+            let selection_set = parse_selection_set(parser)?;
 
             Ok(Selection::InlineFragment(Spanning::start_end(
                 &start_pos.clone(),
@@ -167,8 +168,8 @@ fn parse_fragment<'a>(parser: &mut Parser<'a>) -> UnlocatedParseResult<'a, Selec
             )))
         }
         Token::Name(_) => {
-            let frag_name = try!(parser.expect_name());
-            let directives = try!(parse_directives(parser));
+            let frag_name = parser.expect_name()?;
+            let directives = parse_directives(parser)?;
 
             Ok(Selection::FragmentSpread(Spanning::start_end(
                 &start_pos.clone(),
@@ -183,8 +184,8 @@ fn parse_fragment<'a>(parser: &mut Parser<'a>) -> UnlocatedParseResult<'a, Selec
             )))
         }
         Token::At => {
-            let directives = try!(parse_directives(parser));
-            let selection_set = try!(parse_selection_set(parser));
+            let directives = parse_directives(parser)?;
+            let selection_set = parse_selection_set(parser)?;
 
             Ok(Selection::InlineFragment(Spanning::start_end(
                 &start_pos.clone(),
@@ -201,17 +202,17 @@ fn parse_fragment<'a>(parser: &mut Parser<'a>) -> UnlocatedParseResult<'a, Selec
 }
 
 fn parse_field<'a>(parser: &mut Parser<'a>) -> ParseResult<'a, Field<'a>> {
-    let mut alias = Some(try!(parser.expect_name()));
+    let mut alias = Some(parser.expect_name()?);
 
-    let name = if try!(parser.skip(&Token::Colon)).is_some() {
-        try!(parser.expect_name())
+    let name = if parser.skip(&Token::Colon)?.is_some() {
+        parser.expect_name()?
     } else {
         alias.take().unwrap()
     };
 
-    let arguments = try!(parse_arguments(parser));
-    let directives = try!(parse_directives(parser));
-    let selection_set = try!(parse_optional_selection_set(parser));
+    let arguments = parse_arguments(parser)?;
+    let directives = parse_directives(parser)?;
+    let selection_set = parse_optional_selection_set(parser)?;
 
     Ok(Spanning::start_end(
         &alias.as_ref().unwrap_or(&name).start.clone(),
@@ -237,14 +238,11 @@ fn parse_arguments<'a>(parser: &mut Parser<'a>) -> OptionParseResult<'a, Argumen
         Ok(None)
     } else {
         Ok(Some(
-            try!(
-                parser
-                    .delimited_nonempty_list(&Token::ParenOpen, parse_argument, &Token::ParenClose)
-            ).map(|args| {
-                Arguments {
+            parser
+                .delimited_nonempty_list(&Token::ParenOpen, parse_argument, &Token::ParenClose)?
+                .map(|args| Arguments {
                     items: args.into_iter().map(|s| s.item).collect(),
-                }
-            }),
+                }),
         ))
     }
 }
@@ -252,9 +250,9 @@ fn parse_arguments<'a>(parser: &mut Parser<'a>) -> OptionParseResult<'a, Argumen
 fn parse_argument<'a>(
     parser: &mut Parser<'a>,
 ) -> ParseResult<'a, (Spanning<&'a str>, Spanning<InputValue>)> {
-    let name = try!(parser.expect_name());
-    try!(parser.expect(&Token::Colon));
-    let value = try!(parse_value_literal(parser, false));
+    let name = parser.expect_name()?;
+    parser.expect(&Token::Colon)?;
+    let value = parse_value_literal(parser, false)?;
 
     Ok(Spanning::start_end(
         &name.start.clone(),
@@ -278,15 +276,15 @@ fn parse_variable_definitions<'a>(
         Ok(None)
     } else {
         Ok(Some(
-            try!(parser.delimited_nonempty_list(
-                &Token::ParenOpen,
-                parse_variable_definition,
-                &Token::ParenClose
-            )).map(|defs| {
-                VariableDefinitions {
+            parser
+                .delimited_nonempty_list(
+                    &Token::ParenOpen,
+                    parse_variable_definition,
+                    &Token::ParenClose,
+                )?
+                .map(|defs| VariableDefinitions {
                     items: defs.into_iter().map(|s| s.item).collect(),
-                }
-            }),
+                }),
         ))
     }
 }
@@ -296,13 +294,13 @@ fn parse_variable_definition<'a>(
 ) -> ParseResult<'a, (Spanning<&'a str>, VariableDefinition<'a>)> {
     let Spanning {
         start: start_pos, ..
-    } = try!(parser.expect(&Token::Dollar));
-    let var_name = try!(parser.expect_name());
-    try!(parser.expect(&Token::Colon));
-    let var_type = try!(parse_type(parser));
+    } = parser.expect(&Token::Dollar)?;
+    let var_name = parser.expect_name()?;
+    parser.expect(&Token::Colon)?;
+    let var_type = parse_type(parser)?;
 
-    let default_value = if try!(parser.skip(&Token::Equals)).is_some() {
-        Some(try!(parse_value_literal(parser, true)))
+    let default_value = if parser.skip(&Token::Equals)?.is_some() {
+        Some(parse_value_literal(parser, true)?)
     } else {
         None
     };
@@ -331,7 +329,7 @@ fn parse_directives<'a>(
     } else {
         let mut items = Vec::new();
         while parser.peek().item == Token::At {
-            items.push(try!(parse_directive(parser)));
+            items.push(parse_directive(parser)?);
         }
 
         Ok(Spanning::spanning(items))
@@ -341,9 +339,9 @@ fn parse_directives<'a>(
 fn parse_directive<'a>(parser: &mut Parser<'a>) -> ParseResult<'a, Directive<'a>> {
     let Spanning {
         start: start_pos, ..
-    } = try!(parser.expect(&Token::At));
-    let name = try!(parser.expect_name());
-    let arguments = try!(parse_arguments(parser));
+    } = parser.expect(&Token::At)?;
+    let name = parser.expect_name()?;
+    let arguments = parse_arguments(parser)?;
 
     Ok(Spanning::start_end(
         &start_pos,
@@ -358,20 +356,20 @@ fn parse_directive<'a>(parser: &mut Parser<'a>) -> ParseResult<'a, Directive<'a>
 pub fn parse_type<'a>(parser: &mut Parser<'a>) -> ParseResult<'a, Type<'a>> {
     let parsed_type = if let Some(Spanning {
         start: start_pos, ..
-    }) = try!(parser.skip(&Token::BracketOpen))
+    }) = parser.skip(&Token::BracketOpen)?
     {
-        let inner_type = try!(parse_type(parser));
-        let Spanning { end: end_pos, .. } = try!(parser.expect(&Token::BracketClose));
+        let inner_type = parse_type(parser)?;
+        let Spanning { end: end_pos, .. } = parser.expect(&Token::BracketClose)?;
         Spanning::start_end(&start_pos, &end_pos, Type::List(Box::new(inner_type.item)))
     } else {
-        try!(parser.expect_name()).map(|s| Type::Named(Cow::Borrowed(s)))
+        parser.expect_name()?.map(|s| Type::Named(Cow::Borrowed(s)))
     };
 
     Ok(match *parser.peek() {
         Spanning {
             item: Token::ExclamationMark,
             ..
-        } => try!(wrap_non_null(parser, parsed_type)),
+        } => wrap_non_null(parser, parsed_type)?,
         _ => parsed_type,
     })
 }
@@ -380,7 +378,7 @@ fn wrap_non_null<'a>(
     parser: &mut Parser<'a>,
     inner: Spanning<Type<'a>>,
 ) -> ParseResult<'a, Type<'a>> {
-    let Spanning { end: end_pos, .. } = try!(parser.expect(&Token::ExclamationMark));
+    let Spanning { end: end_pos, .. } = parser.expect(&Token::ExclamationMark)?;
 
     let wrapped = match inner.item {
         Type::Named(name) => Type::NonNullNamed(name),

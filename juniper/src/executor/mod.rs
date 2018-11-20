@@ -1,23 +1,34 @@
-use std::cmp::Ordering;
-use std::fmt::Display;
 use std::borrow::Cow;
+use std::cmp::Ordering;
 use std::collections::HashMap;
+use std::fmt::Display;
 use std::sync::RwLock;
 
 use fnv::FnvHashMap;
 
-use GraphQLError;
-use ast::{Definition, Document, Fragment, FromInputValue, InputValue, OperationType, Selection,
-          ToInputValue, Type};
-use value::Value;
+use ast::{
+    Definition, Document, Fragment, FromInputValue, InputValue, OperationType, Selection,
+    ToInputValue, Type,
+};
 use parser::SourcePosition;
+use value::Value;
+use GraphQLError;
 
-use schema::meta::{Argument, EnumMeta, EnumValue, Field, InputObjectMeta, InterfaceMeta, ListMeta,
-                   MetaType, NullableMeta, ObjectMeta, PlaceholderMeta, ScalarMeta, UnionMeta};
+use schema::meta::{
+    Argument, EnumMeta, EnumValue, Field, InputObjectMeta, InterfaceMeta, ListMeta, MetaType,
+    NullableMeta, ObjectMeta, PlaceholderMeta, ScalarMeta, UnionMeta,
+};
 use schema::model::{RootNode, SchemaType, TypeType};
 
 use types::base::GraphQLType;
 use types::name::Name;
+
+mod look_ahead;
+
+pub use self::look_ahead::{
+    Applies, ChildSelection, ConcreteLookAheadSelection, LookAheadArgument, LookAheadMethods,
+    LookAheadSelection, LookAheadValue,
+};
 
 /// A type registry used to build schemas
 ///
@@ -46,6 +57,7 @@ where
     fragments: &'a HashMap<&'a str, &'a Fragment<'a>>,
     variables: &'a Variables,
     current_selection_set: Option<&'a [Selection<'a>]>,
+    parent_selection_set: Option<&'a [Selection<'a>]>,
     current_type: TypeType<'a>,
     schema: &'a SchemaType<'a>,
     context: &'a CtxT,
@@ -64,19 +76,36 @@ pub struct ExecutionError {
     error: FieldError,
 }
 
+impl ExecutionError {
+    /// Construct a new execution error occuring at the beginning of the query
+    pub fn at_origin(error: FieldError) -> ExecutionError {
+        ExecutionError {
+            location: SourcePosition::new_origin(),
+            path: Vec::new(),
+            error: error,
+        }
+    }
+}
+
 impl Eq for ExecutionError {}
 
 impl PartialOrd for ExecutionError {
     fn partial_cmp(&self, other: &ExecutionError) -> Option<Ordering> {
-        (&self.location, &self.path, &self.error.message)
-            .partial_cmp(&(&other.location, &other.path, &other.error.message))
+        (&self.location, &self.path, &self.error.message).partial_cmp(&(
+            &other.location,
+            &other.path,
+            &other.error.message,
+        ))
     }
 }
 
 impl Ord for ExecutionError {
     fn cmp(&self, other: &ExecutionError) -> Ordering {
-        (&self.location, &self.path, &self.error.message)
-            .cmp(&(&other.location, &other.path, &other.error.message))
+        (&self.location, &self.path, &self.error.message).cmp(&(
+            &other.location,
+            &other.path,
+            &other.error.message,
+        ))
     }
 }
 
@@ -98,14 +127,14 @@ impl Ord for ExecutionError {
 #[derive(Debug, PartialEq)]
 pub struct FieldError {
     message: String,
-    data: Value,
+    extensions: Value,
 }
 
 impl<T: Display> From<T> for FieldError {
     fn from(e: T) -> FieldError {
         FieldError {
             message: format!("{}", e),
-            data: Value::null(),
+            extensions: Value::null(),
         }
     }
 }
@@ -128,7 +157,7 @@ impl FieldError {
     /// # fn main() { }
     /// ```
     ///
-    /// The `data` parameter will be added to the `"data"` field of the error
+    /// The `extensions` parameter will be added to the `"extensions"` field of the error
     /// object in the JSON response:
     ///
     /// ```json
@@ -136,7 +165,7 @@ impl FieldError {
     ///   "errors": [
     ///     "message": "Could not open connection to the database",
     ///     "locations": [{"line": 2, "column": 4}],
-    ///     "data": {
+    ///     "extensions": {
     ///       "internal_error": "Connection refused"
     ///     }
     ///   ]
@@ -144,10 +173,10 @@ impl FieldError {
     /// ```
     ///
     /// If the argument is `Value::null()`, no extra data will be included.
-    pub fn new<T: Display>(e: T, data: Value) -> FieldError {
+    pub fn new<T: Display>(e: T, extensions: Value) -> FieldError {
         FieldError {
             message: format!("{}", e),
-            data: data,
+            extensions,
         }
     }
 
@@ -157,8 +186,8 @@ impl FieldError {
     }
 
     #[doc(hidden)]
-    pub fn data(&self) -> &Value {
-        &self.data
+    pub fn extensions(&self) -> &Value {
+        &self.extensions
     }
 }
 
@@ -170,6 +199,21 @@ pub type ExecutionResult = Result<Value, FieldError>;
 
 /// The map of variables used for substitution during query execution
 pub type Variables = HashMap<String, InputValue>;
+
+/// Custom error handling trait to enable Error types other than `FieldError` to be specified
+/// as return value.
+///
+/// Any custom error type should implement this trait to convert it to `FieldError`.
+pub trait IntoFieldError {
+    #[doc(hidden)]
+    fn into_field_error(self) -> FieldError;
+}
+
+impl IntoFieldError for FieldError {
+    fn into_field_error(self) -> FieldError {
+        self
+    }
+}
 
 #[doc(hidden)]
 pub trait IntoResolvable<'a, T: GraphQLType, C>: Sized {
@@ -186,12 +230,13 @@ where
     }
 }
 
-impl<'a, T: GraphQLType, C> IntoResolvable<'a, T, C> for FieldResult<T>
+impl<'a, T: GraphQLType, C, E: IntoFieldError> IntoResolvable<'a, T, C> for Result<T, E>
 where
     T::Context: FromContext<C>,
 {
     fn into(self, ctx: &'a C) -> FieldResult<Option<(&'a T::Context, T)>> {
         self.map(|v| Some((FromContext::from(ctx), v)))
+            .map_err(|e| e.into_field_error())
     }
 }
 
@@ -213,7 +258,9 @@ impl<'a, T: GraphQLType, C> IntoResolvable<'a, T, C> for FieldResult<(&'a T::Con
     }
 }
 
-impl<'a, T: GraphQLType, C> IntoResolvable<'a, Option<T>, C> for FieldResult<Option<(&'a T::Context, T)>> {
+impl<'a, T: GraphQLType, C> IntoResolvable<'a, Option<T>, C>
+    for FieldResult<Option<(&'a T::Context, T)>>
+{
     fn into(self, _: &'a C) -> FieldResult<Option<(&'a T::Context, Option<T>)>> {
         self.map(|o| o.map(|(ctx, v)| (ctx, Some(v))))
     }
@@ -222,20 +269,20 @@ impl<'a, T: GraphQLType, C> IntoResolvable<'a, Option<T>, C> for FieldResult<Opt
 /// Conversion trait for context types
 ///
 /// Used to support different context types for different parts of an
-/// application. By making each GraphQL type only aware of as much
+/// application. By making each `GraphQL` type only aware of as much
 /// context as it needs to, isolation and robustness can be
 /// improved. Implement this trait if you have contexts that can
 /// generally be converted between each other.
 ///
 /// The empty tuple `()` can be converted into from any context type,
-/// making it suitable for GraphQL that don't need _any_ context to
+/// making it suitable for `GraphQL` that don't need _any_ context to
 /// work, e.g. scalars or enums.
 pub trait FromContext<T> {
     /// Perform the conversion
     fn from(value: &T) -> &Self;
 }
 
-/// Marker trait for types that can act as context objects for GraphQL types.
+/// Marker trait for types that can act as context objects for `GraphQL` types.
 pub trait Context {}
 
 impl<'a, C: Context> Context for &'a C {}
@@ -306,6 +353,7 @@ impl<'a, CtxT> Executor<'a, CtxT> {
             fragments: self.fragments,
             variables: self.variables,
             current_selection_set: self.current_selection_set,
+            parent_selection_set: self.parent_selection_set,
             current_type: self.current_type.clone(),
             schema: self.schema,
             context: ctx,
@@ -326,11 +374,14 @@ impl<'a, CtxT> Executor<'a, CtxT> {
             fragments: self.fragments,
             variables: self.variables,
             current_selection_set: selection_set,
+            parent_selection_set: self.current_selection_set,
             current_type: self.schema.make_type(
                 &self.current_type
                     .innermost_concrete()
-                    .field_by_name(field_name).expect("Field not found on inner type")
-                    .field_type),
+                    .field_by_name(field_name)
+                    .expect("Field not found on inner type")
+                    .field_type,
+            ),
             schema: self.schema,
             context: self.context,
             errors: self.errors,
@@ -348,6 +399,7 @@ impl<'a, CtxT> Executor<'a, CtxT> {
             fragments: self.fragments,
             variables: self.variables,
             current_selection_set: selection_set,
+            parent_selection_set: self.current_selection_set,
             current_type: match type_name {
                 Some(type_name) => self.schema.type_by_name(type_name).expect("Type not found"),
                 None => self.current_type.clone(),
@@ -410,6 +462,36 @@ impl<'a, CtxT> Executor<'a, CtxT> {
             path: path,
             error: error,
         });
+    }
+
+    /// Construct a lookahead selection for the current selection
+    ///
+    /// This allows to see the whole selection and preform operations
+    /// affecting the childs
+    pub fn look_ahead(&'a self) -> LookAheadSelection<'a> {
+        self.parent_selection_set
+            .map(|p| {
+                LookAheadSelection::build_from_selection(&p[0], self.variables, self.fragments)
+            })
+            .unwrap_or_else(|| LookAheadSelection {
+                name: self.current_type.innermost_concrete().name().unwrap_or(""),
+                alias: None,
+                arguments: Vec::new(),
+                children: self.current_selection_set
+                    .map(|s| {
+                        s.iter()
+                            .map(|s| ChildSelection {
+                                inner: LookAheadSelection::build_from_selection(
+                                    s,
+                                    self.variables,
+                                    self.fragments,
+                                ),
+                                applies_for: Applies::All,
+                            })
+                            .collect()
+                    })
+                    .unwrap_or_else(Vec::new),
+            })
     }
 }
 
@@ -478,8 +560,8 @@ where
                     return Err(GraphQLError::MultipleOperationsProvided);
                 }
 
-                let move_op = operation_name.is_none() ||
-                    op.item.name.as_ref().map(|s| s.item.as_ref()) == operation_name;
+                let move_op = operation_name.is_none()
+                    || op.item.name.as_ref().map(|s| s.item.as_ref()) == operation_name;
 
                 if move_op {
                     operation = Some(op);
@@ -525,7 +607,10 @@ where
 
         let root_type = match op.item.operation_type {
             OperationType::Query => root_node.schema.query_type(),
-            OperationType::Mutation => root_node.schema.mutation_type().expect("No mutation type found")
+            OperationType::Mutation => root_node
+                .schema
+                .mutation_type()
+                .expect("No mutation type found"),
         };
 
         let executor = Executor {
@@ -535,6 +620,7 @@ where
                 .collect(),
             variables: final_vars,
             current_selection_set: Some(&op.item.selection_set[..]),
+            parent_selection_set: None,
             current_type: root_type,
             schema: &root_node.schema,
             context: context,

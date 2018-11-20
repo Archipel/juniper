@@ -148,9 +148,7 @@ impl<'a> Visitor<'a> for VariableInAllowedPosition<'a> {
 fn error_message(var_name: &str, type_name: &str, expected_type_name: &str) -> String {
     format!(
         "Variable \"{}\" of type \"{}\" used in position expecting type \"{}\"",
-        var_name,
-        type_name,
-        expected_type_name
+        var_name, type_name, expected_type_name
     )
 }
 
@@ -385,15 +383,13 @@ mod tests {
             }
           }
         "#,
-            &[
-                RuleError::new(
-                    &error_message("intArg", "Int", "Int!"),
-                    &[
-                        SourcePosition::new(23, 1, 22),
-                        SourcePosition::new(117, 3, 48),
-                    ],
-                ),
-            ],
+            &[RuleError::new(
+                &error_message("intArg", "Int", "Int!"),
+                &[
+                    SourcePosition::new(23, 1, 22),
+                    SourcePosition::new(117, 3, 48),
+                ],
+            )],
         );
     }
 
@@ -412,15 +408,13 @@ mod tests {
             }
           }
         "#,
-            &[
-                RuleError::new(
-                    &error_message("intArg", "Int", "Int!"),
-                    &[
-                        SourcePosition::new(154, 5, 22),
-                        SourcePosition::new(110, 2, 46),
-                    ],
-                ),
-            ],
+            &[RuleError::new(
+                &error_message("intArg", "Int", "Int!"),
+                &[
+                    SourcePosition::new(154, 5, 22),
+                    SourcePosition::new(110, 2, 46),
+                ],
+            )],
         );
     }
 
@@ -443,15 +437,13 @@ mod tests {
             }
           }
         "#,
-            &[
-                RuleError::new(
-                    &error_message("intArg", "Int", "Int!"),
-                    &[
-                        SourcePosition::new(255, 9, 22),
-                        SourcePosition::new(211, 6, 46),
-                    ],
-                ),
-            ],
+            &[RuleError::new(
+                &error_message("intArg", "Int", "Int!"),
+                &[
+                    SourcePosition::new(255, 9, 22),
+                    SourcePosition::new(211, 6, 46),
+                ],
+            )],
         );
     }
 
@@ -466,15 +458,13 @@ mod tests {
             }
           }
         "#,
-            &[
-                RuleError::new(
-                    &error_message("stringVar", "String", "Boolean"),
-                    &[
-                        SourcePosition::new(23, 1, 22),
-                        SourcePosition::new(117, 3, 42),
-                    ],
-                ),
-            ],
+            &[RuleError::new(
+                &error_message("stringVar", "String", "Boolean"),
+                &[
+                    SourcePosition::new(23, 1, 22),
+                    SourcePosition::new(117, 3, 42),
+                ],
+            )],
         );
     }
 
@@ -489,15 +479,13 @@ mod tests {
             }
           }
         "#,
-            &[
-                RuleError::new(
-                    &error_message("stringVar", "String", "[String]"),
-                    &[
-                        SourcePosition::new(23, 1, 22),
-                        SourcePosition::new(123, 3, 48),
-                    ],
-                ),
-            ],
+            &[RuleError::new(
+                &error_message("stringVar", "String", "[String]"),
+                &[
+                    SourcePosition::new(23, 1, 22),
+                    SourcePosition::new(123, 3, 48),
+                ],
+            )],
         );
     }
 
@@ -510,15 +498,13 @@ mod tests {
             dog @include(if: $boolVar)
           }
         "#,
-            &[
-                RuleError::new(
-                    &error_message("boolVar", "Boolean", "Boolean!"),
-                    &[
-                        SourcePosition::new(23, 1, 22),
-                        SourcePosition::new(73, 2, 29),
-                    ],
-                ),
-            ],
+            &[RuleError::new(
+                &error_message("boolVar", "Boolean", "Boolean!"),
+                &[
+                    SourcePosition::new(23, 1, 22),
+                    SourcePosition::new(73, 2, 29),
+                ],
+            )],
         );
     }
 
@@ -531,15 +517,13 @@ mod tests {
             dog @include(if: $stringVar)
           }
         "#,
-            &[
-                RuleError::new(
-                    &error_message("stringVar", "String", "Boolean!"),
-                    &[
-                        SourcePosition::new(23, 1, 22),
-                        SourcePosition::new(74, 2, 29),
-                    ],
-                ),
-            ],
+            &[RuleError::new(
+                &error_message("stringVar", "String", "Boolean!"),
+                &[
+                    SourcePosition::new(23, 1, 22),
+                    SourcePosition::new(74, 2, 29),
+                ],
+            )],
         );
     }
 }

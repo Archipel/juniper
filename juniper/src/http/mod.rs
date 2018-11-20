@@ -5,9 +5,9 @@ pub mod graphiql;
 use serde::ser;
 use serde::ser::SerializeMap;
 
-use {GraphQLError, GraphQLType, RootNode, Value, Variables};
 use ast::InputValue;
 use executor::ExecutionError;
+use {FieldError, GraphQLError, GraphQLType, RootNode, Value, Variables};
 
 /// The expected structure of the decoded JSON document for either POST or GET requests.
 ///
@@ -86,6 +86,11 @@ impl GraphQLRequest {
 pub struct GraphQLResponse<'a>(Result<(Value, Vec<ExecutionError>), GraphQLError<'a>>);
 
 impl<'a> GraphQLResponse<'a> {
+    /// Constructs an error response outside of the normal execution flow
+    pub fn error(error: FieldError) -> Self {
+        GraphQLResponse(Ok((Value::null(), vec![ExecutionError::at_origin(error)])))
+    }
+
     /// Was the request successful or not?
     ///
     /// Note that there still might be errors in the response even though it's
@@ -102,22 +107,22 @@ impl<'a> ser::Serialize for GraphQLResponse<'a> {
     {
         match self.0 {
             Ok((ref res, ref err)) => {
-                let mut map = try!(serializer.serialize_map(None));
+                let mut map = serializer.serialize_map(None)?;
 
-                try!(map.serialize_key("data"));
-                try!(map.serialize_value(res));
+                map.serialize_key("data")?;
+                map.serialize_value(res)?;
 
                 if !err.is_empty() {
-                    try!(map.serialize_key("errors"));
-                    try!(map.serialize_value(err));
+                    map.serialize_key("errors")?;
+                    map.serialize_value(err)?;
                 }
 
                 map.end()
             }
             Err(ref err) => {
-                let mut map = try!(serializer.serialize_map(Some(1)));
-                try!(map.serialize_key("errors"));
-                try!(map.serialize_value(err));
+                let mut map = serializer.serialize_map(Some(1))?;
+                map.serialize_key("errors")?;
+                map.serialize_value(err)?;
                 map.end()
             }
         }
@@ -127,11 +132,12 @@ impl<'a> ser::Serialize for GraphQLResponse<'a> {
 #[cfg(any(test, feature = "expose-test-schema"))]
 #[allow(missing_docs)]
 pub mod tests {
-    use serde_json::Value as Json;
     use serde_json;
+    use serde_json::Value as Json;
 
     /// Normalized response content we expect to get back from
     /// the http framework integration we are testing.
+    #[derive(Debug)]
     pub struct TestResponse {
         pub status_code: i32,
         pub body: Option<String>,
@@ -160,6 +166,18 @@ pub mod tests {
 
         println!("  - test_simple_post");
         test_simple_post(integration);
+
+        println!("  - test_batched_post");
+        test_batched_post(integration);
+
+        println!("  - test_invalid_json");
+        test_invalid_json(integration);
+
+        println!("  - test_invalid_field");
+        test_invalid_field(integration);
+
+        println!("  - test_duplicate_keys");
+        test_duplicate_keys(integration);
     }
 
     fn unwrap_json_response(response: &TestResponse) -> Json {
@@ -172,7 +190,8 @@ pub mod tests {
     }
 
     fn test_simple_get<T: HTTPIntegration>(integration: &T) {
-        let response = integration.get("/?query={hero{name}}");
+        // {hero{name}}
+        let response = integration.get("/?query=%7Bhero%7Bname%7D%7D");
 
         assert_eq!(response.status_code, 200);
         assert_eq!(response.content_type.as_str(), "application/json");
@@ -185,8 +204,9 @@ pub mod tests {
     }
 
     fn test_encoded_get<T: HTTPIntegration>(integration: &T) {
+        // query { human(id: "1000") { id, name, appearsIn, homePlanet } }
         let response = integration.get(
-            "/?query=query%20{%20%20%20human(id:%20\"1000\")%20{%20%20%20%20%20id,%20%20%20%20%20name,%20%20%20%20%20appearsIn,%20%20%20%20%20homePlanet%20%20%20}%20}");
+            "/?query=query%20%7B%20human(id%3A%20%221000%22)%20%7B%20id%2C%20name%2C%20appearsIn%2C%20homePlanet%20%7D%20%7D");
 
         assert_eq!(response.status_code, 200);
         assert_eq!(response.content_type.as_str(), "application/json");
@@ -213,8 +233,10 @@ pub mod tests {
     }
 
     fn test_get_with_variables<T: HTTPIntegration>(integration: &T) {
+        // query($id: String!) { human(id: $id) { id, name, appearsIn, homePlanet } }
+        // with variables = { "id": "1000" }
         let response = integration.get(
-            "/?query=query($id:%20String!)%20{%20%20%20human(id:%20$id)%20{%20%20%20%20%20id,%20%20%20%20%20name,%20%20%20%20%20appearsIn,%20%20%20%20%20homePlanet%20%20%20}%20}&variables={%20%20%20\"id\":%20%20\"1000\"%20}");
+            "/?query=query(%24id%3A%20String!)%20%7B%20human(id%3A%20%24id)%20%7B%20id%2C%20name%2C%20appearsIn%2C%20homePlanet%20%7D%20%7D&variables=%7B%20%22id%22%3A%20%221000%22%20%7D");
 
         assert_eq!(response.status_code, 200);
         assert_eq!(response.content_type, "application/json");
@@ -251,5 +273,47 @@ pub mod tests {
             serde_json::from_str::<Json>(r#"{"data": {"hero": {"name": "R2-D2"}}}"#)
                 .expect("Invalid JSON constant in test")
         );
+    }
+
+    fn test_batched_post<T: HTTPIntegration>(integration: &T) {
+        let response = integration.post(
+            "/",
+            r#"[{"query": "{hero{name}}"}, {"query": "{hero{name}}"}]"#,
+        );
+
+        assert_eq!(response.status_code, 200);
+        assert_eq!(response.content_type, "application/json");
+
+        assert_eq!(
+            unwrap_json_response(&response),
+            serde_json::from_str::<Json>(
+                r#"[{"data": {"hero": {"name": "R2-D2"}}}, {"data": {"hero": {"name": "R2-D2"}}}]"#
+            ).expect("Invalid JSON constant in test")
+        );
+    }
+
+    fn test_invalid_json<T: HTTPIntegration>(integration: &T) {
+        let response = integration.get("/?query=blah");
+        assert_eq!(response.status_code, 400);
+        let response = integration.post("/", r#"blah"#);
+        assert_eq!(response.status_code, 400);
+    }
+
+    fn test_invalid_field<T: HTTPIntegration>(integration: &T) {
+        // {hero{blah}}
+        let response = integration.get("/?query=%7Bhero%blah%7D%7D");
+        assert_eq!(response.status_code, 400);
+        let response = integration.post("/", r#"{"query": "{hero{blah}}"}"#);
+        assert_eq!(response.status_code, 400);
+    }
+
+    fn test_duplicate_keys<T: HTTPIntegration>(integration: &T) {
+        // {hero{name}}
+        let response = integration.get("/?query=%7B%22query%22%3A%20%22%7Bhero%7Bname%7D%7D%22%2C%20%22query%22%3A%20%22%7Bhero%7Bname%7D%7D%22%7D");
+        assert_eq!(response.status_code, 400);
+        let response = integration.post("/", r#"
+            {"query": "{hero{name}}", "query": "{hero{name}}"}
+        "#);
+        assert_eq!(response.status_code, 400);
     }
 }
