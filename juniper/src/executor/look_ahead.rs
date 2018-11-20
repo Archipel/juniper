@@ -23,7 +23,7 @@ pub enum Applies<'a> {
 #[allow(missing_docs)]
 pub enum LookAheadValue<'a> {
     Null,
-    Int(i32),
+    Int(i64),
     Float(f64),
     String(&'a str),
     Boolean(bool),
