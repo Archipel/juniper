@@ -7,7 +7,7 @@ members = [
   "integration_tests/juniper_2018_edition_tests",
   "juniper_hyper",
   "juniper_iron",
-  "juniper_rocket",
+  #"juniper_rocket",
   "juniper_warp",
 ]
 exclude = [
