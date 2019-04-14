@@ -165,10 +165,12 @@ pub trait ScalarValue:
     + Serialize
     + From<String>
     + From<bool>
-    + From<i32>
+    + From<i64>
+    + From<u64>
     + From<f64>
     + Into<Option<bool>>
-    + Into<Option<i32>>
+    + Into<Option<i64>>
+    + Into<Option<u64>>
     + Into<Option<f64>>
     + Into<Option<String>>
 {
@@ -182,7 +184,7 @@ pub trait ScalarValue:
     ///
     /// let value = DefaultScalarValue::Int(42);
     ///
-    /// assert_eq!(value.is_type::<i32>(), true);
+    /// assert_eq!(value.is_type::<i64>(), true);
     /// assert_eq!(value.is_type::<f64>(), false);
     ///
     /// ```
@@ -196,10 +198,17 @@ pub trait ScalarValue:
 
     /// Convert the given scalar value into an integer value
     ///
-    /// This function is used for implementing `GraphQLType` for `i32` for all
+    /// This function is used for implementing `GraphQLType` for `i64` for all
     /// scalar values. Implementations should convert all supported integer
-    /// types with 32 bit or less to an integer if requested.
-    fn as_int(&self) -> Option<i32>;
+    /// types with 64 bit or less to an integer if requested.
+    fn as_int(&self) -> Option<i64>;
+
+    /// Convert the given scalar value into an integer value
+    ///
+    /// This function is used for implementing `GraphQLType` for `u64` for all
+    /// scalar values. Implementations should convert all supported unsigned integer
+    /// types with 64 bit or less to an integer if requested.
+    fn as_uint(&self) -> Option<u64>;
 
     /// Convert the given scalar value into a string value
     ///
@@ -233,7 +242,8 @@ pub trait ScalarValue:
 pub trait ScalarRefValue<'a>:
     Debug
     + Into<Option<&'a bool>>
-    + Into<Option<&'a i32>>
+    + Into<Option<&'a i64>>
+    + Into<Option<&'a u64>>
     + Into<Option<&'a String>>
     + Into<Option<&'a f64>>
 {
@@ -243,7 +253,8 @@ impl<'a, T> ScalarRefValue<'a> for &'a T
 where
     T: ScalarValue,
     &'a T: Into<Option<&'a bool>>
-        + Into<Option<&'a i32>>
+        + Into<Option<&'a i64>>
+        + Into<Option<&'a u64>>
         + Into<Option<&'a String>>
         + Into<Option<&'a f64>>,
 {
@@ -255,7 +266,8 @@ where
 #[derive(Debug, PartialEq, Clone, GraphQLScalarValueInternal)]
 #[allow(missing_docs)]
 pub enum DefaultScalarValue {
-    Int(i32),
+    Int(i64),
+    UInt(u64),
     Float(f64),
     String(String),
     Boolean(bool),
@@ -264,9 +276,16 @@ pub enum DefaultScalarValue {
 impl ScalarValue for DefaultScalarValue {
     type Visitor = DefaultScalarValueVisitor;
 
-    fn as_int(&self) -> Option<i32> {
+    fn as_int(&self) -> Option<i64> {
         match *self {
             DefaultScalarValue::Int(ref i) => Some(*i),
+            _ => None,
+        }
+    }
+
+    fn as_uint(&self) -> Option<u64> {
+        match *self {
+            DefaultScalarValue::UInt(ref i) => Some(*i),
             _ => None,
         }
     }
@@ -318,32 +337,14 @@ impl<'de> de::Visitor<'de> for DefaultScalarValueVisitor {
     where
         E: de::Error,
     {
-        if value >= i64::from(i32::min_value()) && value <= i64::from(i32::max_value()) {
-            Ok(DefaultScalarValue::Int(value as i32))
-        } else {
-            // Browser's JSON.stringify serialize all numbers having no
-            // fractional part as integers (no decimal point), so we
-            // must parse large integers as floating point otherwise
-            // we would error on transferring large floating point
-            // numbers.
-            Ok(DefaultScalarValue::Float(value as f64))
-        }
+        Ok(DefaultScalarValue::Int(value))
     }
 
     fn visit_u64<E>(self, value: u64) -> Result<DefaultScalarValue, E>
     where
         E: de::Error,
     {
-        if value <= i32::max_value() as u64 {
-            self.visit_i64(value as i64)
-        } else {
-            // Browser's JSON.stringify serialize all numbers having no
-            // fractional part as integers (no decimal point), so we
-            // must parse large integers as floating point otherwise
-            // we would error on transferring large floating point
-            // numbers.
-            Ok(DefaultScalarValue::Float(value as f64))
-        }
+        Ok(DefaultScalarValue::UInt(value))
     }
 
     fn visit_f64<E>(self, value: f64) -> Result<DefaultScalarValue, E> {

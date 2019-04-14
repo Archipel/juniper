@@ -225,12 +225,84 @@ graphql_scalar!(bool as "Boolean" where Scalar = <S>{
     }
 });
 
+graphql_scalar!(i16 as "Int" where Scalar = <S>{
+    resolve(&self) -> Value {
+        Value::scalar(*self as i64)
+    }
+
+    from_input_value(v: &InputValue) -> Option<i16> {
+        match *v {
+            InputValue::Scalar(ref sc) => {
+                match sc.as_int() {
+                    Some(i) => {
+                        if i > (i16::max_value() as i64) {
+                            panic!("{} cannot be decoded to i16 as it is > {}", i, i16::max_value());
+                        }
+                        else if i < (i16::min_value() as i64) {
+                            panic!("{} cannot be decoded to i16 as it is < {}", i, i16::min_value());
+                        }
+                        Some(i as i16)
+                    }
+                    _ => None
+                }
+            }
+            _ => None,
+        }
+    }
+
+    from_str<'a>(value: ScalarToken<'a>) -> ParseScalarResult<'a, S> {
+        if let ScalarToken::Int(v) = value {
+            v.parse()
+             .map_err(|_| ParseError::UnexpectedToken(Token::Scalar(value)))
+             .map(|s: i64| s.into())
+        } else {
+            Err(ParseError::UnexpectedToken(Token::Scalar(value)))
+        }
+    }
+});
+
 graphql_scalar!(i32 as "Int" where Scalar = <S>{
+    resolve(&self) -> Value {
+        Value::scalar(*self as i64)
+    }
+
+    from_input_value(v: &InputValue) -> Option<i32> {
+        match *v {
+            InputValue::Scalar(ref sc) => {
+                match sc.as_int() {
+                    Some(i) => {
+                        if i > (i32::max_value() as i64) {
+                            panic!("{} cannot be decoded to i32 as it is > {}", i, i32::max_value());
+                        }
+                        else if i < (i32::min_value() as i64) {
+                            panic!("{} cannot be decoded to i32 as it is < {}", i, i32::min_value());
+                        }
+                        Some(i as i32)
+                    }
+                    _ => None
+                }
+            }
+            _ => None,
+        }
+    }
+
+    from_str<'a>(value: ScalarToken<'a>) -> ParseScalarResult<'a, S> {
+        if let ScalarToken::Int(v) = value {
+            v.parse()
+             .map_err(|_| ParseError::UnexpectedToken(Token::Scalar(value)))
+             .map(|s: i64| s.into())
+        } else {
+            Err(ParseError::UnexpectedToken(Token::Scalar(value)))
+        }
+    }
+});
+
+graphql_scalar!(i64 as "Int" where Scalar = <S>{
     resolve(&self) -> Value {
         Value::scalar(*self)
     }
 
-    from_input_value(v: &InputValue) -> Option<i32> {
+    from_input_value(v: &InputValue) -> Option<i64> {
         match *v {
             InputValue::Scalar(ref i) => i.as_int(),
             _ => None,
@@ -241,7 +313,96 @@ graphql_scalar!(i32 as "Int" where Scalar = <S>{
         if let ScalarToken::Int(v) = value {
             v.parse()
              .map_err(|_| ParseError::UnexpectedToken(Token::Scalar(value)))
-             .map(|s: i32| s.into())
+             .map(|s: i64| s.into())
+        } else {
+            Err(ParseError::UnexpectedToken(Token::Scalar(value)))
+        }
+    }
+});
+
+graphql_scalar!(u16 as "UInt" where Scalar = <S>{
+    resolve(&self) -> Value {
+        Value::scalar(*self as u64)
+    }
+
+    from_input_value(v: &InputValue) -> Option<u16> {
+        match *v {
+            InputValue::Scalar(ref sc) => {
+                match sc.as_int() {
+                    Some(i) => {
+                        if i > (u16::max_value() as i64) {
+                            panic!("{} cannot be decoded to u16 as it is > {}", i, u16::max_value());
+                        }
+                        Some(i as u16)
+                    }
+                    _ => None
+                }
+            }
+            _ => None,
+        }
+    }
+
+    from_str<'a>(value: ScalarToken<'a>) -> ParseScalarResult<'a, S> {
+        if let ScalarToken::Int(v) = value {
+            v.parse()
+             .map_err(|_| ParseError::UnexpectedToken(Token::Scalar(value)))
+             .map(|s: u64| s.into())
+        } else {
+            Err(ParseError::UnexpectedToken(Token::Scalar(value)))
+        }
+    }
+});
+
+graphql_scalar!(u32 as "UInt" where Scalar = <S>{
+    resolve(&self) -> Value {
+        Value::scalar(*self as u64)
+    }
+
+    from_input_value(v: &InputValue) -> Option<u32> {
+        match *v {
+            InputValue::Scalar(ref sc) => {
+                match sc.as_int() {
+                    Some(i) => {
+                        if i > (u32::max_value() as i64) {
+                            panic!("{} cannot be decoded to u32 as it is > {}", i, u32::max_value());
+                        }
+                        Some(i as u32)
+                    }
+                    _ => None
+                }
+            }
+            _ => None,
+        }
+    }
+
+    from_str<'a>(value: ScalarToken<'a>) -> ParseScalarResult<'a, S> {
+        if let ScalarToken::Int(v) = value {
+            v.parse()
+             .map_err(|_| ParseError::UnexpectedToken(Token::Scalar(value)))
+             .map(|s: u64| s.into())
+        } else {
+            Err(ParseError::UnexpectedToken(Token::Scalar(value)))
+        }
+    }
+});
+
+graphql_scalar!(u64 as "UInt" where Scalar = <S>{
+    resolve(&self) -> Value {
+        Value::scalar(*self)
+    }
+
+    from_input_value(v: &InputValue) -> Option<u64> {
+        match *v {
+            InputValue::Scalar(ref i) => i.as_uint(),
+            _ => None,
+        }
+    }
+
+    from_str<'a>(value: ScalarToken<'a>) -> ParseScalarResult<'a, S> {
+        if let ScalarToken::UInt(v) = value {
+            v.parse()
+             .map_err(|_| ParseError::UnexpectedToken(Token::Scalar(value)))
+             .map(|s: u64| s.into())
         } else {
             Err(ParseError::UnexpectedToken(Token::Scalar(value)))
         }
@@ -262,7 +423,7 @@ graphql_scalar!(f64 as "Float" where Scalar = <S>{
 
     from_str<'a>(value: ScalarToken<'a>) -> ParseScalarResult<'a, S> {
         match value {
-            ScalarToken::Int(v) | ScalarToken::Float(v) => {
+            ScalarToken::Int(v) | ScalarToken::UInt(v) | ScalarToken::Float(v) => {
                 v.parse()
                  .map_err(|_| ParseError::UnexpectedToken(Token::Scalar(value)))
                  .map(|s: f64| s.into())
@@ -300,7 +461,7 @@ where
     S: ScalarValue,
 {
     fn from_str<'a>(_value: ScalarToken<'a>) -> ParseScalarResult<'a, S> {
-        Ok(S::from(0))
+        Ok(S::from(0 as i64))
     }
 }
 

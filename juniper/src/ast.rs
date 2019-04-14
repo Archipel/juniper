@@ -214,30 +214,6 @@ where
         InputValue::Null
     }
 
-    /// Construct an integer value.
-    #[deprecated(since = "0.11.0", note = "Use `InputValue::scalar` instead")]
-    pub fn int(i: i32) -> Self {
-        Self::scalar(i)
-    }
-
-    /// Construct a floating point value.
-    #[deprecated(since = "0.11.0", note = "Use `InputValue::scalar` instead")]
-    pub fn float(f: f64) -> Self {
-        Self::scalar(f)
-    }
-
-    /// Construct a boolean value.
-    #[deprecated(since = "0.11.0", note = "Use `InputValue::scalar` instead")]
-    pub fn boolean(b: bool) -> Self {
-        Self::scalar(b)
-    }
-
-    /// Construct a string value.
-    #[deprecated(since = "0.11.0", note = "Use `InputValue::scalar` instead")]
-    pub fn string<T: AsRef<str>>(s: T) -> Self {
-        InputValue::scalar(s.as_ref().to_owned())
-    }
-
     /// Construct a scalar value
     pub fn scalar<T>(v: T) -> Self
     where
@@ -344,33 +320,6 @@ where
             InputValue::Enum(ref e) => Some(e),
             _ => None,
         }
-    }
-
-    /// View the underlying int value, if present.
-    #[deprecated(since = "0.11.0", note = "Use `InputValue::as_scalar_value` instead")]
-    pub fn as_int_value<'a>(&'a self) -> Option<i32>
-    where
-        &'a S: Into<Option<&'a i32>>,
-    {
-        self.as_scalar_value().map(|i| *i)
-    }
-
-    /// View the underlying float value, if present.
-    #[deprecated(since = "0.11.0", note = "Use `InputValue::as_scalar_value` instead")]
-    pub fn as_float_value<'a>(&'a self) -> Option<f64>
-    where
-        &'a S: Into<Option<&'a f64>>,
-    {
-        self.as_scalar_value().map(|f| *f)
-    }
-
-    /// View the underlying string value, if present.
-    #[deprecated(since = "0.11.0", note = "Use `InputValue::as_scalar_value` instead")]
-    pub fn as_string_value<'a>(&'a self) -> Option<&'a str>
-    where
-        &'a S: Into<Option<&'a String>>,
-    {
-        self.as_scalar_value().map(|s| s as &str)
     }
 
     /// View the underlying scalar value, if present.

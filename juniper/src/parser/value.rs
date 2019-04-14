@@ -225,6 +225,15 @@ where
                 panic!("There needs to be a Int type")
             }
         }
+        ScalarToken::UInt(_) => {
+            if let Some(&MetaType::Scalar(ref s)) = schema.concrete_type_by_name("UInt") {
+                (s.parse_fn)(token)
+                    .map(|s| Spanning::start_end(start, end, InputValue::Scalar(s)))
+                    .map_err(|e| Spanning::start_end(start, end, e))
+            } else {
+                panic!("There needs to be a UInt type")
+            }
+        }
         ScalarToken::Float(_) => {
             if let Some(&MetaType::Scalar(ref s)) = schema.concrete_type_by_name("Float") {
                 (s.parse_fn)(token)

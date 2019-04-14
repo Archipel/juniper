@@ -38,30 +38,6 @@ where
         Value::Null
     }
 
-    /// Construct an integer value.
-    #[deprecated(since = "0.11", note = "Use `Value::scalar` instead")]
-    pub fn int(i: i32) -> Self {
-        Self::scalar(i)
-    }
-
-    /// Construct a floating point value.
-    #[deprecated(since = "0.11", note = "Use `Value::scalar` instead")]
-    pub fn float(f: f64) -> Self {
-        Self::scalar(f)
-    }
-
-    /// Construct a string value.
-    #[deprecated(since = "0.11", note = "Use `Value::scalar` instead")]
-    pub fn string(s: &str) -> Self {
-        Self::scalar(s.to_owned())
-    }
-
-    /// Construct a boolean value.
-    #[deprecated(since = "0.11", note = "Use `Value::scalar` instead")]
-    pub fn boolean(b: bool) -> Self {
-        Self::scalar(b)
-    }
-
     /// Construct a list value.
     pub fn list(l: Vec<Self>) -> Self {
         Value::List(l)
@@ -207,11 +183,20 @@ where
     }
 }
 
-impl<S> From<i32> for Value<S>
+impl<S> From<i64> for Value<S>
 where
     S: ScalarValue,
 {
-    fn from(i: i32) -> Self {
+    fn from(i: i64) -> Self {
+        Value::scalar(i)
+    }
+}
+
+impl<S> From<u64> for Value<S>
+    where
+        S: ScalarValue,
+{
+    fn from(i: u64) -> Self {
         Value::scalar(i)
     }
 }

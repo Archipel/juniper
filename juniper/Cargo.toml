@@ -1,6 +1,6 @@
 [package]
 name = "juniper"
-version = "0.11.1-aprchipel1.0-dev"
+version = "0.11.1-archipel1.0-dev"
 authors = [
     "Magnus Hallin <mhallin@fastmail.com>",
     "Christoph Herzog <chris@theduke.at>",

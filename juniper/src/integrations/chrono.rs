@@ -90,18 +90,22 @@ graphql_scalar!(NaiveDate where Scalar = <S>{
     }
 });
 
-/// JSON numbers (i.e. IEEE doubles) are not precise enough for nanosecond
-/// datetimes. Values will be truncated to microsecond resolution.
 graphql_scalar!(NaiveDateTime where Scalar = <S> {
     description: "NaiveDateTime"
 
     resolve(&self) -> Value {
-        Value::scalar(self.timestamp() as f64)
+        Value::scalar(self.timestamp() as i64)
     }
 
     from_input_value(v: &InputValue) -> Option<NaiveDateTime> {
         v.as_scalar_value::<f64>()
-         .and_then(|f| NaiveDateTime::from_timestamp_opt(*f as i64, 0))
+         .and_then( |f| {
+            NaiveDateTime::from_timestamp_opt(f.trunc() as i64, (f.fract()*1_000_000_000.0) as u32)
+        }).or(
+            v.as_scalar_value().and_then(|t| {
+                NaiveDateTime::from_timestamp_opt(*t, 0)
+            })
+        )
     }
 
     from_str<'a>(value: ScalarToken<'a>) -> ParseScalarResult<'a, S> {

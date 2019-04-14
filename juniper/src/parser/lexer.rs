@@ -25,6 +25,7 @@ pub enum ScalarToken<'a> {
     String(&'a str),
     Float(&'a str),
     Int(&'a str),
+    UInt(&'a str),
 }
 
 /// A single token in the input source
@@ -426,7 +427,7 @@ impl<'a> Lexer<'a> {
 
         let token = if is_float {
             Token::Scalar(ScalarToken::Float(number))
-        } else {
+        } else { //TODO?: handle unsigned ints
             Token::Scalar(ScalarToken::Int(number))
         };
 
@@ -485,7 +486,7 @@ impl<'a> fmt::Display for Token<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             Token::Name(name) => write!(f, "{}", name),
-            Token::Scalar(ScalarToken::Int(s)) | Token::Scalar(ScalarToken::Float(s)) => {
+            Token::Scalar(ScalarToken::Int(s)) | Token::Scalar(ScalarToken::UInt(s)) | Token::Scalar(ScalarToken::Float(s)) => {
                 write!(f, "{}", s)
             }
             Token::Scalar(ScalarToken::String(s)) => {
